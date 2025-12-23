@@ -50,7 +50,7 @@ fi
 
 # Install python-dotenv
 echo -e "${GREEN}[2/9]${NC} Installing Python dependencies..."
-pip3 install python-dotenv
+pip3 install python-dotenv --break-system-packages
 
 # Create installation directory
 echo -e "${GREEN}[3/9]${NC} Creating installation directory: $INSTALL_DIR"
