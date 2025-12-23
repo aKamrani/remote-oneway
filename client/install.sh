@@ -48,9 +48,9 @@ if ! command -v pip3 &> /dev/null; then
     apt-get install -y python3-pip
 fi
 
-# Install python-dotenv
+# Install python dependencies
 echo -e "${GREEN}[2/9]${NC} Installing Python dependencies..."
-pip3 install python-dotenv --break-system-packages
+pip3 install python-dotenv netifaces --break-system-packages
 
 # Create installation directory
 echo -e "${GREEN}[3/9]${NC} Creating installation directory: $INSTALL_DIR"

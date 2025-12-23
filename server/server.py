@@ -21,6 +21,7 @@ BUFFER_SIZE = 4096
 
 # Store active clients and pending commands
 clients = {}
+client_names = {}  # Maps client_name -> client_id (addr:port)
 pending_commands = {}
 command_lock = threading.Lock()
 
@@ -33,6 +34,7 @@ class ClientHandler(threading.Thread):
         self.conn = conn
         self.addr = addr
         self.client_id = f"{addr[0]}:{addr[1]}"
+        self.client_name = None
         self.daemon = True
         
     def run(self):
@@ -40,6 +42,31 @@ class ClientHandler(threading.Thread):
         print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Client connected: {self.client_id}")
         
         try:
+            # First, wait for client identification
+            self.conn.settimeout(10)
+            try:
+                data = self.conn.recv(BUFFER_SIZE)
+                if data:
+                    try:
+                        ident_msg = json.loads(data.decode('utf-8').strip())
+                        if ident_msg.get('type') == 'identify':
+                            self.client_name = ident_msg.get('client_name', self.client_id)
+                            with command_lock:
+                                client_names[self.client_name] = self.client_id
+                            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Client identified as: {self.client_name}")
+                    except json.JSONDecodeError:
+                        pass
+            except socket.timeout:
+                print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Client identification timeout")
+            finally:
+                self.conn.settimeout(None)
+            
+            # If no identification received, use IP-based ID
+            if not self.client_name:
+                self.client_name = self.client_id
+                with command_lock:
+                    client_names[self.client_name] = self.client_id
+            
             while True:
                 # Check if there's a pending command for this client
                 with command_lock:
@@ -62,7 +89,7 @@ class ClientHandler(threading.Thread):
                         try:
                             response = json.loads(data.decode('utf-8'))
                             print(f"\n{'='*80}")
-                            print(f"Response from {self.client_id}:")
+                            print(f"Response from {self.client_name} ({self.client_id}):")
                             print(f"Command: {response.get('command', 'N/A')}")
                             print(f"Exit Code: {response.get('exit_code', 'N/A')}")
                             print(f"\n--- STDOUT ---")
@@ -72,7 +99,7 @@ class ClientHandler(threading.Thread):
                                 print(response.get('stderr'))
                             print(f"{'='*80}\n")
                         except json.JSONDecodeError:
-                            print(f"[ERROR] Invalid response from {self.client_id}")
+                            print(f"[ERROR] Invalid response from {self.client_name}")
                     else:
                         # Send heartbeat
                         message = json.dumps({'type': 'heartbeat'})
@@ -90,13 +117,15 @@ class ClientHandler(threading.Thread):
                             self.conn.settimeout(None)
                             
         except Exception as e:
-            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Error with client {self.client_id}: {e}")
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Error with client {self.client_name}: {e}")
         finally:
             self.conn.close()
-            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Client disconnected: {self.client_id}")
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Client disconnected: {self.client_name}")
             with command_lock:
                 if self.client_id in clients:
                     del clients[self.client_id]
+                if self.client_name and self.client_name in client_names:
+                    del client_names[self.client_name]
 
 
 def accept_connections(server_socket):
@@ -113,6 +142,38 @@ def accept_connections(server_socket):
             print(f"[ERROR] Failed to accept connection: {e}")
 
 
+def parse_command_input(user_input):
+    """
+    Parse command input to determine target clients and command.
+    
+    Formats:
+        - "command" -> all clients
+        - "@client_name command" -> specific client
+        - "@all command" -> all clients
+        
+    Returns:
+        tuple: (target_clients, command) where target_clients is list of client_ids or None for all
+    """
+    user_input = user_input.strip()
+    
+    if user_input.startswith('@'):
+        # Extract target and command
+        parts = user_input.split(None, 1)
+        if len(parts) < 2:
+            return None, None
+        
+        target = parts[0][1:]  # Remove @ symbol
+        command = parts[1]
+        
+        if target.lower() == 'all':
+            return None, command  # None means all clients
+        else:
+            return [target], command
+    else:
+        # No target specified, execute on all clients
+        return None, user_input
+
+
 def command_input_loop():
     """Accept commands from user input"""
     print("\n" + "="*80)
@@ -120,40 +181,74 @@ def command_input_loop():
     print("="*80)
     print("Available commands:")
     print("  - Type any shell command to execute on all connected clients")
+    print("  - '@client_name command' - Execute command on specific client")
+    print("  - '@all command' - Execute command on all clients")
     print("  - 'list' or 'clients' - Show connected clients")
     print("  - 'exit' or 'quit' - Shutdown server")
     print("="*80 + "\n")
     
     while True:
         try:
-            command = input("server> ").strip()
+            user_input = input("server> ").strip()
             
-            if not command:
+            if not user_input:
                 continue
                 
-            if command.lower() in ['exit', 'quit']:
+            if user_input.lower() in ['exit', 'quit']:
                 print("Shutting down server...")
                 os._exit(0)
                 
-            if command.lower() in ['list', 'clients']:
+            if user_input.lower() in ['list', 'clients']:
                 with command_lock:
                     if clients:
                         print(f"\nConnected clients ({len(clients)}):")
-                        for client_id in clients:
-                            print(f"  - {client_id}")
+                        for client_id, handler in clients.items():
+                            client_name = handler.client_name if handler.client_name else client_id
+                            print(f"  - {client_name} ({client_id})")
                     else:
                         print("\nNo clients connected.")
                 print()
                 continue
             
-            # Queue command for all connected clients
+            # Parse command input
+            target_clients, command = parse_command_input(user_input)
+            
+            if command is None:
+                print("[ERROR] Invalid command format. Use '@client_name command' or just 'command'\n")
+                continue
+            
+            # Queue command for specified clients
             with command_lock:
                 if not clients:
                     print("[WARNING] No clients connected. Command will not be executed.\n")
-                else:
+                    continue
+                
+                if target_clients is None:
+                    # Execute on all clients
                     for client_id in clients:
                         pending_commands[client_id] = command
                     print(f"[INFO] Command queued for {len(clients)} client(s)\n")
+                else:
+                    # Execute on specific client(s)
+                    queued = 0
+                    for target in target_clients:
+                        # Check if target is a client name or client_id
+                        client_id = client_names.get(target)
+                        if not client_id:
+                            # Try direct client_id match
+                            if target in clients:
+                                client_id = target
+                        
+                        if client_id and client_id in clients:
+                            pending_commands[client_id] = command
+                            queued += 1
+                        else:
+                            print(f"[WARNING] Client '{target}' not found or not connected")
+                    
+                    if queued > 0:
+                        print(f"[INFO] Command queued for {queued} client(s)\n")
+                    else:
+                        print("[ERROR] No valid clients found for command execution\n")
                     
         except KeyboardInterrupt:
             print("\n\nShutting down server...")

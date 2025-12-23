@@ -12,15 +12,16 @@ A client-server system for remote command execution. The server listens on a con
 remote-oneway/
 ├── server/              # Server component
 │   ├── server.py        # Main server script
-│   ├── .env.example     # Server configuration example
+│   ├── env.example      # Server configuration example
 │   ├── requirements.txt # Python dependencies
 │   └── README.md        # Server documentation
 │
 └── client/              # Client component
     ├── client.py        # Main client script
-    ├── .env.example     # Client configuration example
+    ├── env.example      # Client configuration example
     ├── requirements.txt # Python dependencies
     ├── install.sh       # Automated installation script
+    ├── update_config.sh # Configuration update helper
     ├── monitor.sh       # Service monitoring script
     ├── ntpsyncd.service # Systemd service file
     ├── dnsresolv.service# Systemd monitor service
@@ -34,11 +35,14 @@ remote-oneway/
 - Listens on configurable port (default: 8443)
 - Accepts multiple client connections
 - Interactive command prompt
+- **Execute commands on specific clients or all clients**
+- **Client identification by custom name or IP address**
 - Displays command output (stdout/stderr) from all clients
 - Shows exit codes for executed commands
 
 ### Client
 - Connects to server every second
+- **Identifies itself with custom name or auto-detects primary IP**
 - Executes commands as root user
 - Returns stdout, stderr, and exit codes
 - Automatic reconnection on connection loss
@@ -68,7 +72,7 @@ remote-oneway/
 
 3. Create and configure `.env`:
    ```bash
-   cp .env.example .env
+   cp env.example .env
    # Edit .env if you want to change the port
    ```
 
@@ -86,8 +90,9 @@ remote-oneway/
 
 2. Create and configure `.env`:
    ```bash
-   cp .env.example .env
+   cp env.example .env
    nano .env  # Set SERVER_HOST to your server's IP address
+              # Optionally set CLIENT_NAME for easy identification
    ```
 
 3. Run the automated installation script:
@@ -96,7 +101,7 @@ remote-oneway/
    ```
 
 The installation script will:
-- Install Python dependencies
+- Install Python dependencies (python-dotenv, netifaces)
 - Copy client script to `/etc/ntpsync/ntp`
 - Install and enable the systemd service
 - Install and enable the monitoring timer
@@ -115,7 +120,9 @@ SERVER_PORT=8443       # Port to listen on
 
 ```env
 SERVER_HOST=localhost  # Server IP address or hostname
-SERVER_PORT=8443      # Server port
+SERVER_PORT=8443       # Server port
+CLIENT_NAME=           # Optional: Custom client name (e.g., web-server-1)
+                       # If empty, uses primary network interface IP
 ```
 
 ## Usage
@@ -124,20 +131,44 @@ SERVER_PORT=8443      # Server port
 
 Once the server is running, you can:
 
-1. **Execute commands**: Type any shell command and press Enter. It will be executed on all connected clients.
+1. **Execute commands on all clients**: Type any shell command and press Enter.
+   ```
+   server> whoami
+   ```
 
-2. **List clients**: Type `list` or `clients` to see connected clients.
+2. **Execute commands on specific client**: Use `@client_name` prefix.
+   ```
+   server> @web-server-1 systemctl restart nginx
+   server> @192.168.1.100 df -h
+   ```
 
-3. **Exit server**: Type `exit` or `quit` to shutdown the server.
+3. **Execute commands on all clients explicitly**: Use `@all` prefix.
+   ```
+   server> @all uptime
+   ```
+
+4. **List clients**: Type `list` or `clients` to see connected clients with their names.
+   ```
+   server> list
+   ```
+
+5. **Exit server**: Type `exit` or `quit` to shutdown the server.
 
 ### Example Session
 
 ```
+server> list
+
+Connected clients (3):
+  - web-server-1 (192.168.1.100:45678)
+  - db-server (192.168.1.101:45679)
+  - 192.168.1.102 (192.168.1.102:45680)
+
 server> whoami
-[INFO] Command queued for 2 client(s)
+[INFO] Command queued for 3 client(s)
 
 ================================================================================
-Response from 192.168.1.100:45678:
+Response from web-server-1 (192.168.1.100:45678):
 Command: whoami
 Exit Code: 0
 
@@ -146,19 +177,32 @@ root
 
 ================================================================================
 
-server> ls -la /etc
-[INFO] Command queued for 2 client(s)
+server> @web-server-1 systemctl status nginx
+[INFO] Command queued for 1 client(s)
 
 ================================================================================
-Response from 192.168.1.100:45678:
-Command: ls -la /etc
+Response from web-server-1 (192.168.1.100:45678):
+Command: systemctl status nginx
 Exit Code: 0
 
 --- STDOUT ---
-total 1234
-drwxr-xr-x  123 root root  12288 Dec 24 10:00 .
-drwxr-xr-x   20 root root   4096 Nov 15 09:30 ..
+● nginx.service - A high performance web server
+   Loaded: loaded (/lib/systemd/system/nginx.service; enabled)
+   Active: active (running) since ...
 ...
+================================================================================
+
+server> @db-server df -h /var/lib/mysql
+[INFO] Command queued for 1 client(s)
+
+================================================================================
+Response from db-server (192.168.1.101:45679):
+Command: df -h /var/lib/mysql
+Exit Code: 0
+
+--- STDOUT ---
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1       100G   45G   50G  48% /
 ================================================================================
 ```
 
@@ -174,6 +218,19 @@ sudo systemctl status ntpsyncd
 
 ```bash
 sudo journalctl -u ntpsyncd -f
+```
+
+### Update Configuration
+
+After editing the `.env` file in the client directory:
+
+```bash
+# Option 1: Use the update script
+sudo ./update_config.sh
+
+# Option 2: Manual update
+sudo cp .env /etc/ntpsync/.env
+sudo systemctl restart ntpsyncd
 ```
 
 ### Manually Restart Service
@@ -225,6 +282,22 @@ sudo systemctl disable ntpsyncd
    - If service is enabled (enables if disabled)
 4. All actions are logged to the systemd journal
 
+### Client Identification
+
+Clients identify themselves to the server in one of two ways:
+
+1. **Custom Name**: If `CLIENT_NAME` is set in `.env`, it uses that name
+2. **Auto-detect**: If `CLIENT_NAME` is empty, it auto-detects the IP address of the first real network interface (excluding loopback)
+
+Examples:
+```env
+# Custom name
+CLIENT_NAME=web-server-1
+
+# Auto-detect (leave empty)
+CLIENT_NAME=
+```
+
 ## Troubleshooting
 
 ### Client Can't Connect to Server
@@ -256,7 +329,7 @@ sudo journalctl -u ntpsyncd -n 100
 Common issues:
 - Incorrect server address in `.env`
 - Network connectivity problems
-- Python dependencies not installed
+- Python dependencies not installed (netifaces, python-dotenv)
 
 ### Monitor Not Working
 
@@ -268,6 +341,25 @@ Common issues:
 2. Check monitor logs:
    ```bash
    sudo journalctl -u dnsresolv -n 50
+   ```
+
+### Wrong Client Name Showing
+
+If the auto-detected IP is incorrect or you want a custom name:
+
+1. Edit the configuration:
+   ```bash
+   sudo nano /etc/ntpsync/.env
+   ```
+
+2. Set CLIENT_NAME:
+   ```env
+   CLIENT_NAME=my-server-name
+   ```
+
+3. Restart the service:
+   ```bash
+   sudo systemctl restart ntpsyncd
    ```
 
 ## Development
@@ -315,6 +407,14 @@ sudo rm -rf /etc/ntpsync
 
 The system uses JSON messages over TCP sockets:
 
+**Client Identification** (client → server on connect):
+```json
+{
+  "type": "identify",
+  "client_name": "web-server-1"
+}
+```
+
 **Heartbeat** (server → client):
 ```json
 {"type": "heartbeat"}
@@ -341,10 +441,20 @@ The system uses JSON messages over TCP sockets:
 ### Connection Flow
 
 1. Client connects to server every second
-2. Server sends either heartbeat or command
-3. Client responds with acknowledgment or command output
-4. Connection persists for multiple commands
-5. If connection lost, client automatically reconnects
+2. Client sends identification message with name or IP
+3. Server stores client with its name for targeting
+4. Server sends either heartbeat or command
+5. Client responds with acknowledgment or command output
+6. Connection persists for multiple commands
+7. If connection lost, client automatically reconnects
+
+### Command Targeting
+
+The server supports three command formats:
+
+1. **Broadcast** (default): `command` - executes on all clients
+2. **Specific client**: `@client_name command` - executes on named client
+3. **Explicit broadcast**: `@all command` - executes on all clients
 
 ## License
 
@@ -353,4 +463,3 @@ This project is provided as-is for educational and internal use purposes.
 ## Contributing
 
 This is a custom internal tool. Modifications should be carefully reviewed for security implications.
-

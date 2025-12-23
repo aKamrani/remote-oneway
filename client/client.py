@@ -10,6 +10,7 @@ import json
 import time
 import os
 import sys
+import netifaces
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -19,8 +20,53 @@ load_dotenv()
 # Configuration
 SERVER_HOST = os.getenv('SERVER_HOST', 'localhost')
 SERVER_PORT = int(os.getenv('SERVER_PORT', '8443'))
+CLIENT_NAME = os.getenv('CLIENT_NAME', '').strip()
 RECONNECT_INTERVAL = 1  # seconds
 BUFFER_SIZE = 4096
+
+
+def get_primary_ip():
+    """
+    Get the IP address of the first real network interface (not loopback).
+    
+    Returns:
+        IP address as string, or 'unknown' if not found
+    """
+    try:
+        # Get all interfaces
+        interfaces = netifaces.interfaces()
+        
+        for interface in interfaces:
+            # Skip loopback interface
+            if interface.startswith('lo'):
+                continue
+                
+            # Get addresses for this interface
+            addrs = netifaces.ifaddresses(interface)
+            
+            # Check for IPv4 addresses
+            if netifaces.AF_INET in addrs:
+                for addr_info in addrs[netifaces.AF_INET]:
+                    ip = addr_info.get('addr')
+                    # Skip loopback IPs
+                    if ip and not ip.startswith('127.'):
+                        return ip
+        
+        return 'unknown'
+    except Exception as e:
+        return 'unknown'
+
+
+def get_client_identifier():
+    """
+    Get client identifier - use CLIENT_NAME from env or primary IP if empty.
+    
+    Returns:
+        Client identifier string
+    """
+    if CLIENT_NAME:
+        return CLIENT_NAME
+    return get_primary_ip()
 
 
 def execute_command(command):
@@ -80,6 +126,8 @@ def connect_to_server():
     """
     Main client loop - connects to server and processes commands.
     """
+    client_id = get_client_identifier()
+    
     while True:
         sock = None
         try:
@@ -93,6 +141,14 @@ def connect_to_server():
             
             # Remove timeout for normal operations
             sock.settimeout(None)
+            
+            # Send client identification on first connection
+            ident_msg = json.dumps({
+                'type': 'identify',
+                'client_name': client_id
+            })
+            sock.sendall(ident_msg.encode('utf-8') + b'\n')
+            log(f"Sent identification: {client_id}")
             
             # Communication loop
             while True:
@@ -155,7 +211,10 @@ def connect_to_server():
 
 def main():
     """Main entry point"""
+    client_id = get_client_identifier()
+    
     log("Remote Command Execution Client starting...")
+    log(f"Client Name: {client_id}")
     log(f"Server: {SERVER_HOST}:{SERVER_PORT}")
     
     # Check if running as root
