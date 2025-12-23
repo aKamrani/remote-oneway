@@ -1,0 +1,11 @@
+[Unit]
+Description=DNS Resolver Service Monitor (ntpsyncd watchdog)
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/etc/ntpsync/monitor.sh
+
+[Install]
+WantedBy=multi-user.target
+

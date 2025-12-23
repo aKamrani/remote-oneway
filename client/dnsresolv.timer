@@ -1,0 +1,12 @@
+[Unit]
+Description=DNS Resolver Timer (checks ntpsyncd service every minute)
+Requires=dnsresolv.service
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+Unit=dnsresolv.service
+
+[Install]
+WantedBy=timers.target
+
