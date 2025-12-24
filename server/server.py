@@ -32,7 +32,7 @@ load_dotenv()
 # Configuration
 HOST = os.getenv('SERVER_HOST', '0.0.0.0')
 PORT = int(os.getenv('SERVER_PORT', '8443'))
-BUFFER_SIZE = 4096
+BUFFER_SIZE = 16384  # Increased buffer size
 
 # Store active clients and pending commands
 clients = {}
@@ -51,7 +51,35 @@ class ClientHandler(threading.Thread):
         self.client_id = f"{addr[0]}:{addr[1]}"
         self.client_name = None
         self.daemon = True
+        self.buffer = b""
         
+    def _read_messages(self):
+        """
+        Generator that reads from socket and yields complete messages.
+        Handles buffering and newline splitting.
+        """
+        while True:
+            try:
+                # Check if we have a complete message in buffer
+                if b'\n' in self.buffer:
+                    line, self.buffer = self.buffer.split(b'\n', 1)
+                    if line:
+                        yield line.decode('utf-8')
+                    continue
+                
+                # Read more data
+                data = self.conn.recv(BUFFER_SIZE)
+                if not data:
+                    break
+                
+                self.buffer += data
+            except socket.timeout:
+                # If we have buffered data during timeout, it's incomplete
+                # Just return/yield nothing and let the caller handle timeout
+                return
+            except Exception:
+                break
+
     def run(self):
         """Handle client communication"""
         print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Client connected: {self.client_id}")
@@ -60,19 +88,29 @@ class ClientHandler(threading.Thread):
             # First, wait for client identification
             self.conn.settimeout(10)
             try:
-                data = self.conn.recv(BUFFER_SIZE)
-                if data:
-                    try:
-                        ident_msg = json.loads(data.decode('utf-8').strip())
-                        if ident_msg.get('type') == 'identify':
-                            self.client_name = ident_msg.get('client_name', self.client_id)
-                            with command_lock:
-                                client_names[self.client_name] = self.client_id
-                            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Client identified as: {self.client_name}")
-                    except json.JSONDecodeError:
-                        pass
+                # Use a temporary loop for identification
+                while True:
+                    if b'\n' in self.buffer:
+                        line, self.buffer = self.buffer.split(b'\n', 1)
+                        try:
+                            ident_msg = json.loads(line.decode('utf-8').strip())
+                            if ident_msg.get('type') == 'identify':
+                                self.client_name = ident_msg.get('client_name', self.client_id)
+                                with command_lock:
+                                    client_names[self.client_name] = self.client_id
+                                print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Client identified as: {self.client_name}")
+                                break
+                        except json.JSONDecodeError:
+                            pass
+                    
+                    data = self.conn.recv(BUFFER_SIZE)
+                    if not data:
+                        break
+                    self.buffer += data
             except socket.timeout:
                 print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Client identification timeout")
+            except Exception as e:
+                print(f"Identification error: {e}")
             finally:
                 self.conn.settimeout(None)
             
@@ -82,51 +120,70 @@ class ClientHandler(threading.Thread):
                 with command_lock:
                     client_names[self.client_name] = self.client_id
             
+            # Main loop
             while True:
-                # Check if there's a pending command for this client
+                # Check pending commands
                 with command_lock:
                     if self.client_id in pending_commands:
                         command = pending_commands.pop(self.client_id)
                         
-                        # Send command to client
                         message = json.dumps({
                             'type': 'command',
                             'command': command
                         })
                         self.conn.sendall(message.encode('utf-8') + b'\n')
-                        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Command sent to {self.client_id}: {command}")
+                        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Command sent to {self.client_name}: {command}")
                         
-                        # Wait for response
-                        data = self.conn.recv(BUFFER_SIZE)
-                        if not data:
-                            break
-                            
-                        try:
-                            response = json.loads(data.decode('utf-8'))
-                            print(f"\n{'='*80}")
-                            print(f"Response from {self.client_name} ({self.client_id}):")
-                            print(f"Command: {response.get('command', 'N/A')}")
-                            print(f"Exit Code: {response.get('exit_code', 'N/A')}")
-                            print(f"\n--- STDOUT ---")
-                            print(response.get('stdout', '(empty)'))
-                            if response.get('stderr'):
-                                print(f"\n--- STDERR ---")
-                                print(response.get('stderr'))
-                            print(f"{'='*80}\n")
-                        except json.JSONDecodeError:
-                            print(f"[ERROR] Invalid response from {self.client_name}")
+                        # Wait for response (blocking read for this client)
+                        # We need to read until we get the response
+                        while True:
+                            if b'\n' in self.buffer:
+                                line, self.buffer = self.buffer.split(b'\n', 1)
+                                try:
+                                    response = json.loads(line.decode('utf-8'))
+                                    print(f"\n{'='*80}")
+                                    print(f"Response from {self.client_name} ({self.client_id}):")
+                                    print(f"Command: {response.get('command', 'N/A')}")
+                                    print(f"Exit Code: {response.get('exit_code', 'N/A')}")
+                                    print(f"\n--- STDOUT ---")
+                                    print(response.get('stdout', '(empty)'))
+                                    if response.get('stderr'):
+                                        print(f"\n--- STDERR ---")
+                                        print(response.get('stderr'))
+                                    print(f"{'='*80}\n")
+                                    break # Got response, go back to main loop
+                                except json.JSONDecodeError:
+                                    print(f"[ERROR] Invalid response from {self.client_name}: {line[:100]}...")
+                            else:
+                                data = self.conn.recv(BUFFER_SIZE)
+                                if not data:
+                                    raise Exception("Connection closed while waiting for response")
+                                self.buffer += data
+
                     else:
                         # Send heartbeat
                         message = json.dumps({'type': 'heartbeat'})
                         self.conn.sendall(message.encode('utf-8') + b'\n')
                         
-                        # Wait for acknowledgment (with timeout)
+                        # Wait for acknowledgment
                         self.conn.settimeout(2)
                         try:
-                            data = self.conn.recv(BUFFER_SIZE)
-                            if not data:
-                                break
-                        except socket.timeout:
+                            # Read loop for heartbeat
+                            while True:
+                                if b'\n' in self.buffer:
+                                    line, self.buffer = self.buffer.split(b'\n', 1)
+                                    # We ignore the content of heartbeat ack, just clearing buffer is enough
+                                    # But strictly we should check it
+                                    break
+                                
+                                try:
+                                    data = self.conn.recv(BUFFER_SIZE)
+                                    if not data:
+                                        raise Exception("Connection closed")
+                                    self.buffer += data
+                                except socket.timeout:
+                                    break # Timeout is fine for heartbeat check
+                        except Exception:
                             pass
                         finally:
                             self.conn.settimeout(None)
@@ -310,4 +367,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
