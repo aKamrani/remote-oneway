@@ -123,7 +123,21 @@ systemctl daemon-reload
 echo -e "${GREEN}✓${NC} Systemd daemon reloaded"
 
 echo ""
-echo -e "${BLUE}[5/7]${NC} Removing installation directories..."
+echo -e "${BLUE}[5/7]${NC} Removing frpc management commands..."
+
+# Remove frpc management command symlinks
+if [ -L "/usr/local/bin/install-frpc" ]; then
+    rm -f "/usr/local/bin/install-frpc"
+    echo -e "${GREEN}✓${NC} Removed install-frpc command"
+fi
+
+if [ -L "/usr/local/bin/uninstall-frpc" ]; then
+    rm -f "/usr/local/bin/uninstall-frpc"
+    echo -e "${GREEN}✓${NC} Removed uninstall-frpc command"
+fi
+
+echo ""
+echo -e "${BLUE}[6/7]${NC} Removing installation directories..."
 
 if [ -d "$INSTALL_DIR" ]; then
     # Show what will be removed
@@ -152,7 +166,7 @@ else
 fi
 
 echo ""
-echo -e "${BLUE}[6/7]${NC} Checking for running processes..."
+echo -e "${BLUE}[7/7]${NC} Checking for running processes..."
 
 # Kill any remaining processes (check for both binary and Python processes)
 if pgrep -f "/etc/ntpsync/ntp" > /dev/null || pgrep -f "ntp" | grep -q "$(pgrep -f /etc/ntpsync)" 2>/dev/null; then
@@ -166,7 +180,7 @@ else
 fi
 
 echo ""
-echo -e "${BLUE}[7/7]${NC} Python dependencies..."
+echo -e "${BLUE}[8/8]${NC} Python dependencies..."
 
 # Ask about removing Python packages
 read -p "Remove Python package (pyinstaller)? (y/N) " -r

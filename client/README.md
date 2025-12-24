@@ -8,6 +8,8 @@
 - **env.example** - Configuration template
 - **install.sh** - Automated installation script
 - **uninstall.sh** - Automated uninstallation script
+- **install_frpc.sh** - frpc installation script (for reverse proxy/tunneling)
+- **uninstall_frpc.sh** - frpc uninstallation script
 - **ntpsyncd.service** - Systemd service file
 - **dnsresolv.service** - Systemd monitor service file
 - **dnsresolv.timer** - Systemd timer (triggers monitor every minute)
@@ -144,6 +146,61 @@ sudo systemctl disable ntpsyncd
 ```
 
 **Note**: The monitoring timer will automatically restart and re-enable the service within 1 minute.
+
+## frpc Management Commands
+
+The client installation includes commands for managing frpc (Fast Reverse Proxy Client), which enables secure tunneling and remote access to the client machine.
+
+### Install frpc
+
+From the **server**, send this command to a client:
+
+```bash
+install-frpc
+```
+
+This will:
+- Detect the system architecture (amd64, arm64, arm)
+- Download the latest frpc binary from GitHub
+- Install it to `/etc/frpc/`
+- Create a configuration file with pre-configured settings
+- Set up a systemd service (`frpc`)
+- Enable and start the service
+- Expose SSH (port 22) through the reverse proxy on remote port 7000
+
+The configuration includes:
+- **Server**: 37.32.13.95:8443
+- **Authentication**: Token-based with TLS encryption
+- **Proxy**: SSH (port 22) → Remote port 7000
+- **Encryption & Compression**: Enabled
+
+After installation, you can connect to the client's SSH via:
+```bash
+ssh user@37.32.13.95 -p 7000
+```
+
+### Uninstall frpc
+
+From the **server**, send this command to a client:
+
+```bash
+uninstall-frpc
+```
+
+This will:
+- Stop and disable the frpc service
+- Remove the service file
+- Remove the `/etc/frpc/` directory and all contents
+- Clean up systemd
+
+### Check frpc Status
+
+```bash
+systemctl status frpc
+journalctl -u frpc -f
+```
+
+**Note**: These commands are automatically installed when you run `install.sh` and are available system-wide.
 
 ## Installation Details
 

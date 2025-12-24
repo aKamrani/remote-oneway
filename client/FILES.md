@@ -42,6 +42,17 @@ The client uses a template-based installation system where configuration is embe
    - Removes all installed files and services
    - Cleans up systemd configuration
 
+8. **install_frpc.sh**
+   - Script to install frpc (Fast Reverse Proxy Client)
+   - Downloads latest frpc binary from GitHub
+   - Configures reverse proxy for SSH access
+   - Sets up systemd service for frpc
+
+9. **uninstall_frpc.sh**
+   - Script to remove frpc and its configuration
+   - Stops and disables frpc service
+   - Removes all frpc files
+
 ### Installed Files (on target system)
 
 1. **/etc/ntpsync/ntp**
@@ -66,6 +77,36 @@ The client uses a template-based installation system where configuration is embe
 5. **/etc/systemd/system/dnsresolv.timer**
    - Timer that triggers monitor every minute
 
+6. **/etc/ntpsync/install_frpc.sh**
+   - frpc installation script
+   - Callable via `install-frpc` command (symlinked)
+
+7. **/etc/ntpsync/uninstall_frpc.sh**
+   - frpc uninstallation script
+   - Callable via `uninstall-frpc` command (symlinked)
+
+8. **/usr/local/bin/install-frpc** (symbolic link)
+   - Points to `/etc/ntpsync/install_frpc.sh`
+   - Allows system-wide access to frpc installer
+
+9. **/usr/local/bin/uninstall-frpc** (symbolic link)
+   - Points to `/etc/ntpsync/uninstall_frpc.sh`
+   - Allows system-wide access to frpc uninstaller
+
+### Optional frpc Files (if installed via install-frpc)
+
+10. **/etc/frpc/frpc**
+    - frpc binary executable
+    - Downloaded from GitHub releases
+
+11. **/etc/frpc/frpc.toml**
+    - frpc configuration file
+    - Configures reverse proxy tunnel
+
+12. **/etc/systemd/system/frpc.service**
+    - frpc systemd service
+    - Manages frpc process
+
 ## Installation Flow
 
 ```
@@ -83,11 +124,15 @@ The client uses a template-based installation system where configuration is embe
    ↓
 7. Compiled binary saved to /etc/dnsresolve/conf
    ↓
-8. Systemd services installed and enabled
+8. frpc management scripts copied to /etc/ntpsync/
    ↓
-9. Services started
+9. Symbolic links created in /usr/local/bin/
    ↓
-10. Build directory with Python source files deleted
+10. Systemd services installed and enabled
+   ↓
+11. Services started
+   ↓
+12. Build directory with Python source files deleted
 ```
 
 ## Why This Approach?

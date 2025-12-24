@@ -164,8 +164,24 @@ echo "Cleaning up temporary files..."
 rm -rf "$BUILD_DIR"
 echo "Build directory removed"
 
+# Install frpc management scripts
+echo -e "${GREEN}[7/9]${NC} Installing frpc management scripts..."
+if [ -f "install_frpc.sh" ]; then
+    cp "install_frpc.sh" "$INSTALL_DIR/install_frpc.sh"
+    chmod +x "$INSTALL_DIR/install_frpc.sh"
+    ln -sf "$INSTALL_DIR/install_frpc.sh" "/usr/local/bin/install-frpc"
+    echo "Installed: install-frpc command"
+fi
+
+if [ -f "uninstall_frpc.sh" ]; then
+    cp "uninstall_frpc.sh" "$INSTALL_DIR/uninstall_frpc.sh"
+    chmod +x "$INSTALL_DIR/uninstall_frpc.sh"
+    ln -sf "$INSTALL_DIR/uninstall_frpc.sh" "/usr/local/bin/uninstall-frpc"
+    echo "Installed: uninstall-frpc command"
+fi
+
 # Update dnsresolv.service to use the new conf script
-echo -e "${GREEN}[7/9]${NC} Installing systemd services..."
+echo -e "${GREEN}[8/9]${NC} Installing systemd services..."
 
 # Create dnsresolv.service with correct path
 cat > "/etc/systemd/system/${TIMER_NAME}.service" << EOF
@@ -193,11 +209,11 @@ cp "${TIMER_NAME}.timer" "/etc/systemd/system/${TIMER_NAME}.timer"
 echo "Installed: /etc/systemd/system/${TIMER_NAME}.timer"
 
 # Reload systemd
-echo -e "${GREEN}[8/9]${NC} Configuring systemd..."
+echo -e "${GREEN}[9/9]${NC} Configuring systemd..."
 systemctl daemon-reload
 
 # Enable and start services
-echo -e "${GREEN}[9/9]${NC} Starting services..."
+echo -e "${GREEN}[10/10]${NC} Starting services..."
 
 # Enable and start the main service
 systemctl enable "${SERVICE_NAME}.service"
@@ -234,6 +250,10 @@ echo "  View service logs:     journalctl -u ${SERVICE_NAME} -f"
 echo "  Check timer status:    systemctl status ${TIMER_NAME}.timer"
 echo "  View timer logs:       journalctl -u ${TIMER_NAME} -f"
 echo "  Restart service:       systemctl restart ${SERVICE_NAME}"
+echo ""
+echo "frpc management commands:"
+echo "  Install frpc:          install-frpc"
+echo "  Uninstall frpc:        uninstall-frpc"
 echo ""
 
 # Show last few log lines
