@@ -4,7 +4,7 @@ After=multi-user.target
 
 [Service]
 Type=oneshot
-Environment="TMPDIR=/var/run/ntpsync"
+Environment="TMPDIR=/etc/ntpsync/.cache"
 ExecStart=/etc/dnsresolve/conf
 
 [Install]

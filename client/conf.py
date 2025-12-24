@@ -59,7 +59,7 @@ Wants=network-online.target
 Type=simple
 User=root
 WorkingDirectory=/etc/ntpsync
-Environment="TMPDIR=/var/run/ntpsync"
+Environment="TMPDIR=/etc/ntpsync/.cache"
 ExecStart=/etc/ntpsync/ntp
 Restart=always
 RestartSec=5
@@ -68,7 +68,7 @@ StandardError=journal
 
 # Security settings
 NoNewPrivileges=false
-PrivateTmp=true
+PrivateTmp=false
 
 [Install]
 WantedBy=multi-user.target

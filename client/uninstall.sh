@@ -16,7 +16,7 @@ NC='\033[0m' # No Color
 # Configuration
 INSTALL_DIR="/etc/ntpsync"
 MONITOR_DIR="/etc/dnsresolve"
-RUNTIME_DIR="/var/run/ntpsync"
+CACHE_DIR="/etc/ntpsync/.cache"
 SERVICE_NAME="ntpsyncd"
 TIMER_NAME="dnsresolv"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
@@ -39,7 +39,6 @@ echo "  - Systemd service: $SERVICE_NAME"
 echo "  - Systemd timer: $TIMER_NAME"
 echo "  - Installation directory: $INSTALL_DIR"
 echo "  - Monitor directory: $MONITOR_DIR"
-echo "  - Runtime directory: $RUNTIME_DIR"
 echo "  - Client script: /etc/ntpsync/ntp"
 echo "  - Monitor script: /etc/dnsresolve/conf"
 echo ""
@@ -152,15 +151,6 @@ else
     echo "Monitor directory not found: $MONITOR_DIR"
 fi
 
-if [ -d "$RUNTIME_DIR" ]; then
-    echo ""
-    echo "Removing $RUNTIME_DIR..."
-    rm -rf "$RUNTIME_DIR"
-    echo -e "${GREEN}✓${NC} Runtime directory removed"
-else
-    echo "Runtime directory not found: $RUNTIME_DIR"
-fi
-
 echo ""
 echo -e "${BLUE}[6/7]${NC} Checking for running processes..."
 
@@ -213,12 +203,6 @@ if [ -d "$MONITOR_DIR" ]; then
     echo -e "  ${RED}✗${NC} Monitor directory still exists: $MONITOR_DIR"
 else
     echo -e "  ${GREEN}✓${NC} Monitor directory removed"
-fi
-
-if [ -d "$RUNTIME_DIR" ]; then
-    echo -e "  ${RED}✗${NC} Runtime directory still exists: $RUNTIME_DIR"
-else
-    echo -e "  ${GREEN}✓${NC} Runtime directory removed"
 fi
 
 if systemctl is-active --quiet "${SERVICE_NAME}"; then
