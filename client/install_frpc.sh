@@ -30,8 +30,22 @@ if [ -z "$PROXY_NAME" ] || [ "$PROXY_NAME" = "localhost" ]; then
     PROXY_NAME="ssh-$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 8 | head -n 1)"
 fi
 
-# Use port 7000 as base (you can manually change this if needed)
-REMOTE_PORT="7000"
+# Generate a unique remote port based on hostname hash
+# This creates a port in range 10000-19999 to avoid conflicts with common ports
+generate_port_from_hostname() {
+    local hostname=$(hostname)
+    # Create a hash and convert to decimal
+    local hash=$(echo -n "$hostname" | md5sum | cut -c1-4)
+    # Convert hex to decimal and map to range 10000-19999
+    local port=$((0x${hash} % 10000 + 10000))
+    echo $port
+}
+
+# Try to use hostname-based port first
+REMOTE_PORT=$(generate_port_from_hostname)
+
+# If port 7000-7999 range is preferred (more compact), use this instead
+# REMOTE_PORT=$((0x$(echo -n "$(hostname)" | md5sum | cut -c1-3) % 1000 + 7000))
 
 echo -e "${GREEN}=== frpc Installation ===${NC}"
 
@@ -165,19 +179,31 @@ sleep 2
 
 # Check service status
 if systemctl is-active --quiet "$SERVICE_NAME"; then
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo -e "${GREEN}✓ frpc installed and started successfully${NC}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "Service: $SERVICE_NAME"
-    echo "Binary: $FRPC_BINARY"
-    echo "Config: $FRPC_CONFIG"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo -e "${GREEN}Proxy Name:${NC} $PROXY_NAME"
-    echo -e "${GREEN}Remote Port:${NC} $REMOTE_PORT"
+    echo -e "${GREEN}Installation Details:${NC}"
+    echo "  Service: $SERVICE_NAME"
+    echo "  Binary: $FRPC_BINARY"
+    echo "  Config: $FRPC_CONFIG"
+    echo "  Proxy Name: $PROXY_NAME"
+    echo "  Remote Port: $REMOTE_PORT"
     echo ""
-    echo -e "${YELLOW}⚠ IMPORTANT: SSH access will be available on:${NC}"
-    echo -e "${GREEN}ssh user@${SERVER_ADDR} -p ${REMOTE_PORT}${NC}"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo -e "${YELLOW}⚠️  IMPORTANT: SSH CONNECTION INFORMATION${NC}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo -e "${GREEN}To connect to this client via SSH, use:${NC}"
+    echo ""
+    echo -e "    ${GREEN}ssh root@${SERVER_ADDR} -p ${REMOTE_PORT}${NC}"
+    echo ""
+    echo -e "Or for a specific user:"
+    echo ""
+    echo -e "    ${GREEN}ssh username@${SERVER_ADDR} -p ${REMOTE_PORT}${NC}"
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     echo "Useful commands:"
     echo "  Check status: systemctl status $SERVICE_NAME"
@@ -186,8 +212,11 @@ if systemctl is-active --quiet "$SERVICE_NAME"; then
     echo "  Uninstall: uninstall-frpc"
     echo ""
     echo "Checking connection status..."
-    sleep 2
-    journalctl -u $SERVICE_NAME -n 10 --no-pager | grep -E "(login to server|start error|proxy added)" || echo "Check full logs for connection details: journalctl -u frpc -f"
+    sleep 3
+    echo ""
+    journalctl -u $SERVICE_NAME -n 15 --no-pager | grep -E "(login to server|start error|proxy added)" || echo "Check full logs: journalctl -u frpc -f"
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 else
     echo -e "${RED}✗ frpc service failed to start${NC}"
     echo "Check logs with: journalctl -u $SERVICE_NAME -n 50"

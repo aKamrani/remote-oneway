@@ -53,6 +53,11 @@ The client uses a template-based installation system where configuration is embe
    - Stops and disables frpc service
    - Removes all frpc files
 
+10. **FRPC_SETUP.md**
+    - Comprehensive guide for frpc setup and troubleshooting
+    - Port assignment details
+    - Server configuration examples
+
 ### Installed Files (on target system)
 
 1. **/etc/ntpsync/ntp**

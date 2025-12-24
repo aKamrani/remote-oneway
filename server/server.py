@@ -256,6 +256,8 @@ def command_input_loop():
     print("  - '@client_name command' - Execute command on specific client")
     print("  - '@all command' - Execute command on all clients")
     print("  - 'list' or 'clients' - Show connected clients")
+    print("  - '@client_name install-frpc' - Install frpc on specific client")
+    print("  - '@client_name uninstall-frpc' - Uninstall frpc on specific client")
     print("  - 'exit' or 'quit' - Shutdown server")
     print("="*80)
     

@@ -30,7 +30,9 @@ remote-oneway/
     ├── ntpsyncd.service # Systemd service file
     ├── dnsresolv.service# Systemd monitor service
     ├── dnsresolv.timer  # Systemd timer (checks every minute)
-    └── README.md        # Client documentation
+    ├── README.md        # Client documentation
+    ├── FILES.md         # File structure documentation
+    └── FRPC_SETUP.md    # frpc setup and troubleshooting guide
 ```
 
 ## Features
@@ -219,8 +221,12 @@ server> @client-name systemctl status frpc
 **Note**: The frpc configuration is pre-configured with:
 - Server: 37.32.13.95:8443
 - Token authentication with TLS
-- SSH proxy on remote port 7000
+- **Unique proxy name** per client (based on hostname)
+- **Auto-assigned remote port** (10000-19999 range, unique per client)
+- SSH proxy (local port 22 → unique remote port)
 - Encryption and compression enabled
+
+Each client gets a unique port calculated from its hostname to avoid conflicts. The installation output will show the exact SSH command to use.
 
 ### Example Session
 

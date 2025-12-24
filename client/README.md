@@ -171,13 +171,19 @@ This will:
 The configuration includes:
 - **Server**: 37.32.13.95:8443
 - **Authentication**: Token-based with TLS encryption
-- **Proxy**: SSH (port 22) → Remote port 7000
+- **Proxy Name**: Unique per client (based on hostname)
+- **Remote Port**: Auto-assigned (10000-19999 range, unique per client based on hostname)
+- **Proxy**: SSH (port 22) → Remote port (auto-assigned)
 - **Encryption & Compression**: Enabled
 
-After installation, you can connect to the client's SSH via:
+**Important**: Each client gets a **unique proxy name** and **unique remote port** to avoid conflicts.
+
+After installation, the script will display the SSH connection command. Example:
 ```bash
-ssh user@37.32.13.95 -p 7000
+ssh user@37.32.13.95 -p 12345
 ```
+
+The port number is calculated from the client's hostname, so it remains consistent across reinstallations.
 
 ### Uninstall frpc
 
