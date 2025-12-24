@@ -163,6 +163,8 @@ Once the server is running, you can:
 
 5. **Exit server**: Type `exit` or `quit` to shutdown the server.
 
+**📖 See [COMMAND_TIPS.md](COMMAND_TIPS.md) for detailed information about which commands work best and how to use interactive commands like `htop`, `top`, etc.**
+
 ### Command Line Features
 
 The server provides bash-like command line editing:
@@ -492,6 +494,17 @@ The server supports three command formats:
 1. **Broadcast** (default): `command` - executes on all clients
 2. **Specific client**: `@client_name command` - executes on named client
 3. **Explicit broadcast**: `@all command` - executes on all clients
+
+### Command Execution Features
+
+The client automatically handles different types of commands:
+
+- **Regular commands**: Execute directly with proper environment variables
+- **Interactive commands** (htop, top, vim, etc.): Wrapped with `script` command to provide pseudo-terminal
+- **Terminal variables**: `TERM`, `COLUMNS`, and `LINES` are set automatically
+- **Timeout**: Commands timeout after 60 seconds
+
+See [COMMAND_TIPS.md](COMMAND_TIPS.md) for comprehensive guide on command usage.
 
 ## License
 
