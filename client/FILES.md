@@ -92,28 +92,39 @@ The client uses a template-based installation system where configuration is embe
 
 ## Why This Approach?
 
-1. **No .env dependency**: The installed script has configuration embedded, so no separate .env file is needed on the target system
-2. **Clean installation**: All configuration in one place (/etc/ntpsync/ntp)
+1. **No .env dependency**: The installed binary has configuration embedded, so no separate .env file is needed on the target system
+2. **Clean installation**: All configuration in one place (embedded in `/etc/ntpsync/ntp`)
 3. **Security**: No separate readable config file to worry about
-4. **Simplicity**: Monitor script doesn't need to check for .env file existence
+4. **Obfuscation**: Source code is compiled to binary, making reverse engineering much harder
+5. **Standalone**: Binaries include all dependencies, no Python interpreter needed on target
+6. **Simplicity**: Monitor script doesn't need to check for .env file existence
 
 ## Updating Configuration
 
-Since configuration is embedded, updates require reinstallation:
+Since configuration is embedded in compiled binary, updates require recompilation:
 
 ```bash
 # 1. Edit .env in client directory
 nano .env
 
-# 2. Reinstall (will update the embedded configuration)
+# 2. Recompile and reinstall (will update the embedded configuration)
 sudo ./install.sh
 ```
 
+The installation script will:
+1. Read new configuration from .env
+2. Create new configured Python script with embedded values
+3. Recompile to binary
+4. Replace existing binary
+5. Restart service
+
 ## File Naming Rationale
 
-- **ntp-daemon** → Creates `/etc/ntpsync/ntp` (looks like NTP system daemon)
-- **conf** → `/etc/dnsresolve/conf` (looks like DNS resolver config/monitoring)
-- This naming helps the files blend in as what appear to be legitimate system services:
-  - `/etc/ntpsync/` - NTP synchronization daemon
-  - `/etc/dnsresolve/` - DNS resolver configuration
+- **ntp-daemon** → Compiles to `/etc/ntpsync/ntp` (looks like NTP system daemon binary)
+- **conf.py** → Compiles to `/etc/dnsresolve/conf` (looks like DNS resolver config/binary)
+- This naming helps the files blend in as what appear to be legitimate system service binaries:
+  - `/etc/ntpsync/` - NTP synchronization daemon directory
+  - `/etc/dnsresolve/` - DNS resolver configuration directory
+- Binary files are less suspicious than Python scripts in system directories
+- No .py extension on installed files - appear as system binaries
 
