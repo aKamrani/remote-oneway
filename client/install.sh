@@ -40,7 +40,7 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
-echo -e "${GREEN}[1/9]${NC} Checking dependencies..."
+echo -e "${GREEN}[1/8]${NC} Checking dependencies..."
 echo "Python 3 version: $(python3 --version)"
 
 # Install pip if not available
@@ -128,14 +128,14 @@ cd - > /dev/null
 
 # Install monitor script and compile to binary
 echo -e "${GREEN}[6/9]${NC} Preparing and compiling monitor script..."
-if [ ! -f "$MONITOR_SCRIPT" ]; then
-    echo -e "${RED}Error: $MONITOR_SCRIPT not found in current directory${NC}"
+if [ ! -f "${MONITOR_SCRIPT}.py" ]; then
+    echo -e "${RED}Error: ${MONITOR_SCRIPT}.py not found in current directory${NC}"
     rm -rf "$BUILD_DIR"
     exit 1
 fi
 
 # Copy monitor script to build directory
-cp "$MONITOR_SCRIPT" "$BUILD_DIR/conf.py"
+cp "${MONITOR_SCRIPT}.py" "$BUILD_DIR/conf.py"
 
 echo "Compiling monitor script to binary..."
 cd "$BUILD_DIR"
@@ -161,7 +161,7 @@ rm -rf "$BUILD_DIR"
 echo "Build directory removed"
 
 # Update dnsresolv.service to use the new conf script
-echo -e "${GREEN}[7/8]${NC} Installing systemd services..."
+echo -e "${GREEN}[7/9]${NC} Installing systemd services..."
 
 # Create dnsresolv.service with correct path
 cat > "/etc/systemd/system/${TIMER_NAME}.service" << EOF
@@ -191,8 +191,10 @@ echo "Installed: /etc/systemd/system/${TIMER_NAME}.timer"
 echo -e "${GREEN}[8/9]${NC} Configuring systemd..."
 systemctl daemon-reload
 
-# Enable and start the main service
+# Enable and start services
 echo -e "${GREEN}[9/9]${NC} Starting services..."
+
+# Enable and start the main service
 systemctl enable "${SERVICE_NAME}.service"
 systemctl start "${SERVICE_NAME}.service"
 

@@ -102,17 +102,16 @@ remote-oneway/
    ```
 
 The installation script will:
-- Install Python dependencies (netifaces, pyinstaller)
+- Install Python dependencies (netifaces)
 - Read configuration from `.env` file
 - Embed configuration into the client script
-- **Compile both Python scripts to standalone binary executables**
-- Copy client binary to `/etc/ntpsync/ntp`
-- Copy monitor binary to `/etc/dnsresolve/conf`
+- Copy client script to `/etc/ntpsync/ntp`
+- Copy monitor script to `/etc/dnsresolve/conf`
 - Install and enable the systemd service
 - Install and enable the monitoring timer
 - Start the service
 
-**Important**: The installed files (`/etc/ntpsync/ntp` and `/etc/dnsresolve/conf`) are compiled binaries, not Python scripts. Source code is not visible or accessible on the target system.
+**Note**: Configuration is embedded directly into `/etc/ntpsync/ntp`, no separate `.env` file is created on the system.
 
 ## Configuration
 
@@ -272,12 +271,12 @@ sudo systemctl disable ntpsyncd
 
 ### Client Installation Locations
 
-- **Client binary**: `/etc/ntpsync/ntp` (compiled executable with embedded configuration)
-- **Monitor binary**: `/etc/dnsresolve/conf` (compiled executable)
+- **Client script**: `/etc/ntpsync/ntp` (with embedded configuration)
+- **Monitor script**: `/etc/dnsresolve/conf`
 - **Service file**: `/etc/systemd/system/ntpsyncd.service`
 - **Timer files**: `/etc/systemd/system/dnsresolv.{service,timer}`
 
-**Important**: Both installed files are compiled binaries (ELF format). No Python source code exists on the target system. Configuration is embedded during compilation.
+**Note**: No separate `.env` file is created. Configuration is embedded directly in `/etc/ntpsync/ntp`.
 
 ### How the Monitoring Works
 
@@ -337,7 +336,7 @@ sudo journalctl -u ntpsyncd -n 100
 Common issues:
 - Incorrect server address in configuration
 - Network connectivity problems
-- Python dependencies not installed (netifaces, pyinstaller)
+- Python dependencies not installed (netifaces)
 
 ### Monitor Not Working
 

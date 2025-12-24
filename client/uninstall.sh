@@ -153,10 +153,12 @@ fi
 echo ""
 echo -e "${BLUE}[6/7]${NC} Checking for running processes..."
 
-# Kill any remaining processes
-if pgrep -f "/usr/bin/python3 /etc/ntpsync/ntp" > /dev/null; then
+# Kill any remaining processes (check for both binary and Python processes)
+if pgrep -f "/etc/ntpsync/ntp" > /dev/null || pgrep -f "ntp" | grep -q "$(pgrep -f /etc/ntpsync)" 2>/dev/null; then
     echo "Found running client processes, terminating..."
-    pkill -f "/usr/bin/python3 /etc/ntpsync/ntp"
+    pkill -f "/etc/ntpsync/ntp" 2>/dev/null || true
+    # Also try to kill by binary name
+    killall ntp 2>/dev/null || true
     echo -e "${GREEN}✓${NC} Processes terminated"
 else
     echo "No running client processes found"

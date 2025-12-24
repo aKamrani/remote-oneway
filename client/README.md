@@ -237,7 +237,7 @@ The configuration is embedded in the script, so you need to reinstall:
 
 ### Testing Without Installation
 
-Use the original `client.py` for testing (requires `.env` file):
+Use the original `client.py` for testing:
 
 ```bash
 # Create .env file
@@ -248,13 +248,10 @@ nano .env
 sudo python client.py
 ```
 
-**Note**: The installed production version is a compiled binary, but you can still test with the Python script during development.
-
 ### Template Files
 
 - **ntp-daemon**: Python template with `{{SERVER_HOST}}`, `{{SERVER_PORT}}`, and `{{CLIENT_NAME}}` placeholders
-- **conf**: Bash script for monitoring (original, kept for reference)
-- **conf.py**: Python version of monitor script
+- **conf.py**: Python monitor script
 
 The `install.sh` script:
 1. Replaces placeholders in `ntp-daemon` with values from `.env`
