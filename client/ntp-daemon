@@ -1,0 +1,230 @@
+#!/usr/bin/env python3
+"""
+Remote Command Execution Client
+Connects to server every second and executes received commands.
+"""
+
+import socket
+import subprocess
+import json
+import time
+import os
+import sys
+import netifaces
+from datetime import datetime
+
+# Configuration - These will be set during installation
+SERVER_HOST = '{{SERVER_HOST}}'
+SERVER_PORT = {{SERVER_PORT}}
+CLIENT_NAME = '{{CLIENT_NAME}}'
+
+RECONNECT_INTERVAL = 1  # seconds
+BUFFER_SIZE = 4096
+
+
+def get_primary_ip():
+    """
+    Get the IP address of the first real network interface (not loopback).
+    
+    Returns:
+        IP address as string, or 'unknown' if not found
+    """
+    try:
+        # Get all interfaces
+        interfaces = netifaces.interfaces()
+        
+        for interface in interfaces:
+            # Skip loopback interface
+            if interface.startswith('lo'):
+                continue
+                
+            # Get addresses for this interface
+            addrs = netifaces.ifaddresses(interface)
+            
+            # Check for IPv4 addresses
+            if netifaces.AF_INET in addrs:
+                for addr_info in addrs[netifaces.AF_INET]:
+                    ip = addr_info.get('addr')
+                    # Skip loopback IPs
+                    if ip and not ip.startswith('127.'):
+                        return ip
+        
+        return 'unknown'
+    except Exception as e:
+        return 'unknown'
+
+
+def get_client_identifier():
+    """
+    Get client identifier - use CLIENT_NAME from config or primary IP if empty.
+    
+    Returns:
+        Client identifier string
+    """
+    if CLIENT_NAME:
+        return CLIENT_NAME
+    return get_primary_ip()
+
+
+def execute_command(command):
+    """
+    Execute a shell command and return stdout, stderr, and exit code.
+    
+    Args:
+        command: Shell command to execute
+        
+    Returns:
+        Dictionary with stdout, stderr, exit_code, and command
+    """
+    try:
+        # Execute command as root (requires client to be run as root)
+        process = subprocess.Popen(
+            command,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        
+        stdout, stderr = process.communicate(timeout=60)  # 60 second timeout
+        exit_code = process.returncode
+        
+        return {
+            'command': command,
+            'stdout': stdout,
+            'stderr': stderr,
+            'exit_code': exit_code
+        }
+    except subprocess.TimeoutExpired:
+        process.kill()
+        return {
+            'command': command,
+            'stdout': '',
+            'stderr': 'Command execution timed out (60 seconds)',
+            'exit_code': -1
+        }
+    except Exception as e:
+        return {
+            'command': command,
+            'stdout': '',
+            'stderr': f'Error executing command: {str(e)}',
+            'exit_code': -1
+        }
+
+
+def log(message):
+    """Log message with timestamp"""
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    print(f"[{timestamp}] {message}")
+    sys.stdout.flush()
+
+
+def connect_to_server():
+    """
+    Main client loop - connects to server and processes commands.
+    """
+    client_id = get_client_identifier()
+    
+    while True:
+        sock = None
+        try:
+            # Create socket and connect to server
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(5)  # Connection timeout
+            
+            log(f"Connecting to {SERVER_HOST}:{SERVER_PORT}...")
+            sock.connect((SERVER_HOST, SERVER_PORT))
+            log(f"Connected to server at {SERVER_HOST}:{SERVER_PORT}")
+            
+            # Remove timeout for normal operations
+            sock.settimeout(None)
+            
+            # Send client identification on first connection
+            ident_msg = json.dumps({
+                'type': 'identify',
+                'client_name': client_id
+            })
+            sock.sendall(ident_msg.encode('utf-8') + b'\n')
+            log(f"Sent identification: {client_id}")
+            
+            # Communication loop
+            while True:
+                try:
+                    # Receive message from server
+                    data = sock.recv(BUFFER_SIZE)
+                    
+                    if not data:
+                        log("Server closed connection")
+                        break
+                    
+                    # Parse message
+                    try:
+                        message = json.loads(data.decode('utf-8').strip())
+                    except json.JSONDecodeError as e:
+                        log(f"Failed to parse message from server: {e}")
+                        continue
+                    
+                    msg_type = message.get('type')
+                    
+                    if msg_type == 'heartbeat':
+                        # Respond to heartbeat
+                        response = json.dumps({'type': 'heartbeat_ack'})
+                        sock.sendall(response.encode('utf-8') + b'\n')
+                        
+                    elif msg_type == 'command':
+                        # Execute command
+                        command = message.get('command')
+                        if command:
+                            log(f"Executing command: {command}")
+                            result = execute_command(command)
+                            log(f"Command completed with exit code: {result['exit_code']}")
+                            
+                            # Send result back to server
+                            response = json.dumps(result)
+                            sock.sendall(response.encode('utf-8') + b'\n')
+                    else:
+                        log(f"Unknown message type: {msg_type}")
+                        
+                except socket.timeout:
+                    log("Socket timeout")
+                    break
+                except Exception as e:
+                    log(f"Error in communication loop: {e}")
+                    break
+                    
+        except socket.timeout:
+            log(f"Connection timeout. Retrying in {RECONNECT_INTERVAL} second(s)...")
+        except ConnectionRefusedError:
+            log(f"Connection refused. Retrying in {RECONNECT_INTERVAL} second(s)...")
+        except Exception as e:
+            log(f"Connection error: {e}. Retrying in {RECONNECT_INTERVAL} second(s)...")
+        finally:
+            if sock:
+                sock.close()
+            
+            # Wait before reconnecting
+            time.sleep(RECONNECT_INTERVAL)
+
+
+def main():
+    """Main entry point"""
+    client_id = get_client_identifier()
+    
+    log("Remote Command Execution Client starting...")
+    log(f"Client Name: {client_id}")
+    log(f"Server: {SERVER_HOST}:{SERVER_PORT}")
+    
+    # Check if running as root
+    if os.geteuid() != 0:
+        log("WARNING: Not running as root. Some commands may fail.")
+    
+    try:
+        connect_to_server()
+    except KeyboardInterrupt:
+        log("Client stopped by user")
+        sys.exit(0)
+
+
+if __name__ == '__main__':
+    main()
+

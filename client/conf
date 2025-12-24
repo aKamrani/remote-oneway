@@ -7,7 +7,6 @@
 SERVICE_NAME="ntpsyncd"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 SCRIPT_PATH="/etc/ntpsync/ntp"
-CLIENT_SCRIPT="/etc/ntpsync/client.py"
 INSTALL_DIR="/etc/ntpsync"
 
 log_message() {
@@ -52,15 +51,9 @@ fi
 
 # Check if the script exists
 if [ ! -f "$SCRIPT_PATH" ]; then
-    log_message "ERROR: Client script $SCRIPT_PATH not found!"
-    if [ -f "$CLIENT_SCRIPT" ]; then
-        log_message "Copying $CLIENT_SCRIPT to $SCRIPT_PATH..."
-        cp "$CLIENT_SCRIPT" "$SCRIPT_PATH"
-        chmod +x "$SCRIPT_PATH"
-    else
-        log_message "ERROR: Source script $CLIENT_SCRIPT not found either. Cannot recover."
-        exit 1
-    fi
+    log_message "ERROR: Client script $SCRIPT_PATH not found and cannot be recovered!"
+    log_message "Please reinstall the client using install.sh"
+    exit 1
 fi
 
 # Check if service is active

@@ -36,7 +36,8 @@ echo -e "${YELLOW}WARNING: This will remove:${NC}"
 echo "  - Systemd service: $SERVICE_NAME"
 echo "  - Systemd timer: $TIMER_NAME"
 echo "  - Installation directory: $INSTALL_DIR"
-echo "  - All configuration files"
+echo "  - Client script: /etc/ntpsync/ntp"
+echo "  - Monitor script: /etc/ntpsync/conf"
 echo ""
 
 # Confirm uninstallation
@@ -122,17 +123,10 @@ echo ""
 echo -e "${BLUE}[5/7]${NC} Removing installation directory..."
 
 if [ -d "$INSTALL_DIR" ]; then
-    # Backup .env file if user wants to keep configuration
-    if [ -f "$INSTALL_DIR/.env" ]; then
-        echo ""
-        read -p "Do you want to backup the configuration file (.env)? (y/N) " -r
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            BACKUP_FILE="./ntpsync-config-backup-$(date +%Y%m%d-%H%M%S).env"
-            cp "$INSTALL_DIR/.env" "$BACKUP_FILE"
-            echo -e "${GREEN}✓${NC} Configuration backed up to: $BACKUP_FILE"
-        fi
-        echo ""
-    fi
+    # Show what will be removed
+    echo "Files to be removed:"
+    ls -la "$INSTALL_DIR" 2>/dev/null | tail -n +4 || echo "  (directory is empty or inaccessible)"
+    echo ""
     
     echo "Removing $INSTALL_DIR..."
     rm -rf "$INSTALL_DIR"
@@ -157,14 +151,14 @@ echo ""
 echo -e "${BLUE}[7/7]${NC} Python dependencies..."
 
 # Ask about removing Python packages
-read -p "Remove Python packages (python-dotenv, netifaces)? (y/N) " -r
+read -p "Remove Python package (netifaces)? (y/N) " -r
 echo ""
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo "Removing Python packages..."
-    pip3 uninstall -y python-dotenv netifaces 2>/dev/null || echo "Some packages were not installed via pip"
+    pip3 uninstall -y netifaces 2>/dev/null || echo "Package was not installed via pip"
     echo -e "${GREEN}✓${NC} Python packages removed"
 else
-    echo "Skipping Python package removal (they may be used by other applications)"
+    echo "Skipping Python package removal (it may be used by other applications)"
 fi
 
 echo ""
@@ -195,5 +189,5 @@ fi
 
 echo ""
 echo -e "${GREEN}The client has been completely uninstalled.${NC}"
+echo -e "${YELLOW}Note: Configuration was embedded in the script, no separate .env file to backup.${NC}"
 echo ""
-

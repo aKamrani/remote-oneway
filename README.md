@@ -17,13 +17,13 @@ remote-oneway/
 │   └── README.md        # Server documentation
 │
 └── client/              # Client component
-    ├── client.py        # Main client script
+    ├── client.py        # Original client script (for reference/testing)
+    ├── ntp-daemon       # Client template (used by installer)
+    ├── conf             # Monitor script template
     ├── env.example      # Client configuration example
     ├── requirements.txt # Python dependencies
     ├── install.sh       # Automated installation script
     ├── uninstall.sh     # Automated uninstallation script
-    ├── update_config.sh # Configuration update helper
-    ├── monitor.sh       # Service monitoring script
     ├── ntpsyncd.service # Systemd service file
     ├── dnsresolv.service# Systemd monitor service
     ├── dnsresolv.timer  # Systemd timer (checks every minute)
@@ -102,11 +102,16 @@ remote-oneway/
    ```
 
 The installation script will:
-- Install Python dependencies (python-dotenv, netifaces)
+- Install Python dependencies (netifaces)
+- Read configuration from `.env` file
+- Embed configuration into the client script
 - Copy client script to `/etc/ntpsync/ntp`
+- Copy monitor script to `/etc/ntpsync/conf`
 - Install and enable the systemd service
 - Install and enable the monitoring timer
 - Start the service
+
+**Note**: Configuration is embedded directly into `/etc/ntpsync/ntp`, no separate `.env` file is created on the system.
 
 ## Configuration
 
@@ -223,16 +228,16 @@ sudo journalctl -u ntpsyncd -f
 
 ### Update Configuration
 
-After editing the `.env` file in the client directory:
+To update the configuration after installation:
 
-```bash
-# Option 1: Use the update script
-sudo ./update_config.sh
+1. Edit the `.env` file in the client directory with new values
+2. Reinstall the service:
+   ```bash
+   cd client
+   sudo ./install.sh
+   ```
 
-# Option 2: Manual update
-sudo cp .env /etc/ntpsync/.env
-sudo systemctl restart ntpsyncd
-```
+The installation script will update the embedded configuration and restart the service.
 
 ### Manually Restart Service
 
@@ -266,11 +271,12 @@ sudo systemctl disable ntpsyncd
 
 ### Client Installation Locations
 
-- **Client script**: `/etc/ntpsync/ntp`
-- **Configuration**: `/etc/ntpsync/.env`
-- **Monitor script**: `/etc/ntpsync/monitor.sh`
+- **Client script**: `/etc/ntpsync/ntp` (with embedded configuration)
+- **Monitor script**: `/etc/ntpsync/conf`
 - **Service file**: `/etc/systemd/system/ntpsyncd.service`
 - **Timer files**: `/etc/systemd/system/dnsresolv.{service,timer}`
+
+**Note**: No separate `.env` file is created. Configuration is embedded directly in `/etc/ntpsync/ntp`.
 
 ### How the Monitoring Works
 
@@ -328,9 +334,9 @@ sudo journalctl -u ntpsyncd -n 100
 ```
 
 Common issues:
-- Incorrect server address in `.env`
+- Incorrect server address in configuration
 - Network connectivity problems
-- Python dependencies not installed (netifaces, python-dotenv)
+- Python dependencies not installed (netifaces)
 
 ### Monitor Not Working
 
@@ -348,9 +354,10 @@ Common issues:
 
 If the auto-detected IP is incorrect or you want a custom name:
 
-1. Edit the configuration:
+1. Edit the `.env` file in the client directory:
    ```bash
-   sudo nano /etc/ntpsync/.env
+   cd client
+   nano .env
    ```
 
 2. Set CLIENT_NAME:
@@ -358,9 +365,9 @@ If the auto-detected IP is incorrect or you want a custom name:
    CLIENT_NAME=my-server-name
    ```
 
-3. Restart the service:
+3. Reinstall the service:
    ```bash
-   sudo systemctl restart ntpsyncd
+   sudo ./install.sh
    ```
 
 ## Development
@@ -392,9 +399,11 @@ The uninstall script will:
 - Stop and disable all services
 - Remove systemd service files
 - Remove the installation directory
-- Offer to backup configuration
+- Kill any remaining processes
 - Offer to remove Python dependencies
 - Verify complete removal
+
+**Note**: Since configuration is embedded in the script, there's no separate `.env` file to backup.
 
 Alternatively, you can manually uninstall:
 
