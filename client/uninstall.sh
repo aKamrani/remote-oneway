@@ -166,14 +166,14 @@ echo ""
 echo -e "${BLUE}[7/7]${NC} Python dependencies..."
 
 # Ask about removing Python packages
-read -p "Remove Python package (netifaces)? (y/N) " -r
+read -p "Remove Python packages (netifaces, pyinstaller)? (y/N) " -r
 echo ""
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo "Removing Python packages..."
-    pip3 uninstall -y netifaces 2>/dev/null || echo "Package was not installed via pip"
+    pip3 uninstall -y netifaces pyinstaller 2>/dev/null || echo "Some packages were not installed via pip"
     echo -e "${GREEN}✓${NC} Python packages removed"
 else
-    echo "Skipping Python package removal (it may be used by other applications)"
+    echo "Skipping Python package removal (they may be used by other applications)"
 fi
 
 echo ""

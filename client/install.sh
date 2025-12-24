@@ -40,7 +40,7 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
-echo -e "${GREEN}[1/8]${NC} Checking dependencies..."
+echo -e "${GREEN}[1/9]${NC} Checking dependencies..."
 echo "Python 3 version: $(python3 --version)"
 
 # Install pip if not available
@@ -51,18 +51,22 @@ if ! command -v pip3 &> /dev/null; then
 fi
 
 # Install python dependencies
-echo -e "${GREEN}[2/8]${NC} Installing Python dependencies..."
-pip3 install netifaces --break-system-packages 2>/dev/null || pip3 install netifaces
+echo -e "${GREEN}[2/9]${NC} Installing Python dependencies..."
+pip3 install netifaces pyinstaller --break-system-packages 2>/dev/null || pip3 install netifaces pyinstaller
 
 # Create installation directories
-echo -e "${GREEN}[3/8]${NC} Creating installation directories..."
+echo -e "${GREEN}[3/9]${NC} Creating installation directories..."
 mkdir -p "$INSTALL_DIR"
 mkdir -p "$MONITOR_DIR"
 echo "Created: $INSTALL_DIR"
 echo "Created: $MONITOR_DIR"
 
+# Create temporary build directory
+BUILD_DIR=$(mktemp -d)
+echo "Created temporary build directory: $BUILD_DIR"
+
 # Load configuration from .env file
-echo -e "${GREEN}[4/8]${NC} Loading configuration..."
+echo -e "${GREEN}[4/9]${NC} Loading configuration..."
 if [ ! -f ".env" ]; then
     if [ -f "env.example" ]; then
         echo -e "${YELLOW}Warning: .env not found, using env.example${NC}"
@@ -88,34 +92,73 @@ echo "  SERVER_HOST: $SERVER_HOST"
 echo "  SERVER_PORT: $SERVER_PORT"
 echo "  CLIENT_NAME: ${CLIENT_NAME:-<auto-detect>}"
 
-# Copy and configure client script
-echo -e "${GREEN}[5/8]${NC} Installing client script..."
+# Copy and configure client script, then compile to binary
+echo -e "${GREEN}[5/9]${NC} Preparing and compiling client script..."
 if [ ! -f "$SOURCE_SCRIPT" ]; then
     echo -e "${RED}Error: $SOURCE_SCRIPT not found in current directory${NC}"
+    rm -rf "$BUILD_DIR"
     exit 1
 fi
 
-# Create the script with embedded configuration
-cp "$SOURCE_SCRIPT" "$INSTALL_DIR/$SCRIPT_NAME"
+# Create the script with embedded configuration in build directory
+cp "$SOURCE_SCRIPT" "$BUILD_DIR/ntp.py"
 
 # Replace placeholders with actual values
-sed -i "s|{{SERVER_HOST}}|$SERVER_HOST|g" "$INSTALL_DIR/$SCRIPT_NAME"
-sed -i "s|{{SERVER_PORT}}|$SERVER_PORT|g" "$INSTALL_DIR/$SCRIPT_NAME"
-sed -i "s|{{CLIENT_NAME}}|$CLIENT_NAME|g" "$INSTALL_DIR/$SCRIPT_NAME"
+sed -i "s|{{SERVER_HOST}}|$SERVER_HOST|g" "$BUILD_DIR/ntp.py"
+sed -i "s|{{SERVER_PORT}}|$SERVER_PORT|g" "$BUILD_DIR/ntp.py"
+sed -i "s|{{CLIENT_NAME}}|$CLIENT_NAME|g" "$BUILD_DIR/ntp.py"
 
-chmod +x "$INSTALL_DIR/$SCRIPT_NAME"
-echo "Installed: $INSTALL_DIR/$SCRIPT_NAME"
+echo "Compiling client script to binary..."
+cd "$BUILD_DIR"
+pyinstaller --onefile --name ntp --strip --clean ntp.py > /dev/null 2>&1
 
-# Install monitor script
-echo -e "${GREEN}[6/8]${NC} Installing monitor script..."
-if [ ! -f "$MONITOR_SCRIPT" ]; then
-    echo -e "${RED}Error: $MONITOR_SCRIPT not found in current directory${NC}"
+if [ ! -f "$BUILD_DIR/dist/ntp" ]; then
+    echo -e "${RED}Error: Failed to compile client script${NC}"
+    cd - > /dev/null
+    rm -rf "$BUILD_DIR"
     exit 1
 fi
 
-cp "$MONITOR_SCRIPT" "$MONITOR_DIR/$MONITOR_SCRIPT"
+# Copy compiled binary
+cp "$BUILD_DIR/dist/ntp" "$INSTALL_DIR/$SCRIPT_NAME"
+chmod +x "$INSTALL_DIR/$SCRIPT_NAME"
+echo "Installed: $INSTALL_DIR/$SCRIPT_NAME (compiled binary)"
+
+cd - > /dev/null
+
+# Install monitor script and compile to binary
+echo -e "${GREEN}[6/9]${NC} Preparing and compiling monitor script..."
+if [ ! -f "$MONITOR_SCRIPT" ]; then
+    echo -e "${RED}Error: $MONITOR_SCRIPT not found in current directory${NC}"
+    rm -rf "$BUILD_DIR"
+    exit 1
+fi
+
+# Copy monitor script to build directory
+cp "$MONITOR_SCRIPT" "$BUILD_DIR/conf.py"
+
+echo "Compiling monitor script to binary..."
+cd "$BUILD_DIR"
+pyinstaller --onefile --name conf --strip --clean conf.py > /dev/null 2>&1
+
+if [ ! -f "$BUILD_DIR/dist/conf" ]; then
+    echo -e "${RED}Error: Failed to compile monitor script${NC}"
+    cd - > /dev/null
+    rm -rf "$BUILD_DIR"
+    exit 1
+fi
+
+# Copy compiled binary
+cp "$BUILD_DIR/dist/conf" "$MONITOR_DIR/$MONITOR_SCRIPT"
 chmod +x "$MONITOR_DIR/$MONITOR_SCRIPT"
-echo "Installed: $MONITOR_DIR/$MONITOR_SCRIPT"
+echo "Installed: $MONITOR_DIR/$MONITOR_SCRIPT (compiled binary)"
+
+cd - > /dev/null
+
+# Clean up build directory
+echo "Cleaning up temporary files..."
+rm -rf "$BUILD_DIR"
+echo "Build directory removed"
 
 # Update dnsresolv.service to use the new conf script
 echo -e "${GREEN}[7/8]${NC} Installing systemd services..."
@@ -145,10 +188,11 @@ cp "${TIMER_NAME}.timer" "/etc/systemd/system/${TIMER_NAME}.timer"
 echo "Installed: /etc/systemd/system/${TIMER_NAME}.timer"
 
 # Reload systemd
-echo -e "${GREEN}[8/8]${NC} Configuring and starting services..."
+echo -e "${GREEN}[8/9]${NC} Configuring systemd..."
 systemctl daemon-reload
 
 # Enable and start the main service
+echo -e "${GREEN}[9/9]${NC} Starting services..."
 systemctl enable "${SERVICE_NAME}.service"
 systemctl start "${SERVICE_NAME}.service"
 
@@ -190,5 +234,6 @@ echo "Recent service logs:"
 journalctl -u "${SERVICE_NAME}" -n 10 --no-pager
 
 echo ""
-echo -e "${GREEN}Configuration has been embedded in $INSTALL_DIR/$SCRIPT_NAME${NC}"
+echo -e "${GREEN}Configuration has been embedded in compiled binary: $INSTALL_DIR/$SCRIPT_NAME${NC}"
+echo -e "${GREEN}Both scripts are now compiled binaries (source code not visible)${NC}"
 echo ""

