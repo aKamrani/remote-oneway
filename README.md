@@ -21,6 +21,7 @@ remote-oneway/
     ├── env.example      # Client configuration example
     ├── requirements.txt # Python dependencies
     ├── install.sh       # Automated installation script
+    ├── uninstall.sh     # Automated uninstallation script
     ├── update_config.sh # Configuration update helper
     ├── monitor.sh       # Service monitoring script
     ├── ntpsyncd.service # Systemd service file
@@ -380,7 +381,22 @@ sudo python client.py
 
 ### Uninstallation
 
-To completely remove the client:
+To completely remove the client, use the uninstall script:
+
+```bash
+cd client
+sudo ./uninstall.sh
+```
+
+The uninstall script will:
+- Stop and disable all services
+- Remove systemd service files
+- Remove the installation directory
+- Offer to backup configuration
+- Offer to remove Python dependencies
+- Verify complete removal
+
+Alternatively, you can manually uninstall:
 
 ```bash
 # Stop and disable services

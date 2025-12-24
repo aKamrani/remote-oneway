@@ -16,6 +16,21 @@ This will:
 - Create and enable the `dnsresolv` systemd timer (monitors the service every minute)
 - Start the client service
 
+### Uninstallation
+
+To completely remove the client and all installed components:
+
+```bash
+sudo ./uninstall.sh
+```
+
+This will:
+- Stop and disable all services
+- Remove all systemd service files
+- Remove the installation directory (`/etc/ntpsync`)
+- Optionally backup configuration before removal
+- Optionally remove Python dependencies
+
 ### Manual Installation
 
 1. Install Python 3.7 or higher
