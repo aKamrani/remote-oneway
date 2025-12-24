@@ -8,8 +8,23 @@ import socket
 import threading
 import json
 import os
+import sys
 from datetime import datetime
 from dotenv import load_dotenv
+
+# Import readline for command history and line editing
+try:
+    import readline
+    # Enable tab completion (optional)
+    readline.parse_and_bind('tab: complete')
+    # Set history length
+    readline.set_history_length(1000)
+except ImportError:
+    # readline not available on Windows by default
+    # You can install pyreadline3 on Windows: pip install pyreadline3
+    print("Warning: readline module not available. Command history and arrow keys won't work.")
+    print("On Windows, install: pip install pyreadline3")
+    readline = None
 
 # Load environment variables
 load_dotenv()
@@ -185,10 +200,22 @@ def command_input_loop():
     print("  - '@all command' - Execute command on all clients")
     print("  - 'list' or 'clients' - Show connected clients")
     print("  - 'exit' or 'quit' - Shutdown server")
+    print("="*80)
+    
+    if readline:
+        print("Info: Command history enabled. Use arrow keys to navigate.")
+    else:
+        print("Warning: Command history disabled. Install pyreadline3 (Windows) or readline.")
+    
     print("="*80 + "\n")
     
     while True:
         try:
+            # Using input() with readline module enabled provides:
+            # - Up/Down arrows for command history
+            # - Left/Right arrows for cursor movement
+            # - Ctrl+A/E for beginning/end of line
+            # - Backspace/Delete for editing
             user_input = input("server> ").strip()
             
             if not user_input:

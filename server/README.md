@@ -7,6 +7,8 @@
    ```bash
    pip install -r requirements.txt
    ```
+   
+   **Note for Windows users**: The server uses `pyreadline3` to enable command history and arrow key navigation. This is automatically installed on Windows from requirements.txt.
 
 ## Configuration
 
@@ -30,6 +32,16 @@ Once the server is running, you can:
 3. Type `exit` or `quit` to shutdown the server
 
 The server will display the output (stdout and stderr) from each client after command execution.
+
+### Command Line Features
+
+The server provides bash-like command line editing:
+- **Up/Down arrows**: Navigate command history
+- **Left/Right arrows**: Move cursor within the line
+- **Ctrl+A**: Jump to beginning of line
+- **Ctrl+E**: Jump to end of line
+- **Backspace/Delete**: Edit commands
+- **Tab**: Auto-completion (if available)
 
 ## Security Warning
 

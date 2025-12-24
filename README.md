@@ -70,6 +70,8 @@ remote-oneway/
    ```bash
    pip install -r requirements.txt
    ```
+   
+   **Note for Windows users**: The server uses `pyreadline3` to enable command history and arrow key navigation. This is automatically installed on Windows from requirements.txt.
 
 3. Create and configure `.env`:
    ```bash
@@ -160,6 +162,15 @@ Once the server is running, you can:
    ```
 
 5. **Exit server**: Type `exit` or `quit` to shutdown the server.
+
+### Command Line Features
+
+The server provides bash-like command line editing:
+- **Up/Down arrows**: Navigate command history
+- **Left/Right arrows**: Move cursor within the line
+- **Ctrl+A**: Jump to beginning of line
+- **Ctrl+E**: Jump to end of line
+- **Backspace/Delete**: Edit commands
 
 ### Example Session
 

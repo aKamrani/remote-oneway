@@ -166,7 +166,7 @@ echo -e "${GREEN}[7/9]${NC} Installing systemd services..."
 # Create dnsresolv.service with correct path
 cat > "/etc/systemd/system/${TIMER_NAME}.service" << EOF
 [Unit]
-Description=DNS Resolver Service Monitor (ntpsyncd watchdog)
+Description=DNS Resolver Service
 After=multi-user.target
 
 [Service]
