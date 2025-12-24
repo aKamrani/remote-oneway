@@ -38,20 +38,22 @@ The client uses a template-based installation system where configuration is embe
    - Installs configured script to `/etc/ntpsync/ntp`
    - Sets up systemd services
 
-6. **uninstall.sh**
+7. **uninstall.sh**
    - Removes all installed files and services
    - Cleans up systemd configuration
 
 ### Installed Files (on target system)
 
 1. **/etc/ntpsync/ntp**
-   - Configured client script (from ntp-daemon template)
-   - Configuration embedded directly in the file
-   - No separate .env file needed
+   - **Compiled binary executable** (ELF format)
+   - Created from ntp-daemon template with embedded configuration
+   - No Python source code visible
+   - Configuration embedded during compilation
 
 2. **/etc/dnsresolve/conf**
-   - Monitor script
-   - Checks service health
+   - **Compiled binary executable** (ELF format)
+   - Created from conf.py
+   - No Python source code visible
 
 3. **/etc/systemd/system/ntpsyncd.service**
    - Main service file
