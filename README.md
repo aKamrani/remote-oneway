@@ -106,7 +106,7 @@ The installation script will:
 - Read configuration from `.env` file
 - Embed configuration into the client script
 - Copy client script to `/etc/ntpsync/ntp`
-- Copy monitor script to `/etc/ntpsync/conf`
+- Copy monitor script to `/etc/dnsresolve/conf`
 - Install and enable the systemd service
 - Install and enable the monitoring timer
 - Start the service
@@ -272,7 +272,7 @@ sudo systemctl disable ntpsyncd
 ### Client Installation Locations
 
 - **Client script**: `/etc/ntpsync/ntp` (with embedded configuration)
-- **Monitor script**: `/etc/ntpsync/conf`
+- **Monitor script**: `/etc/dnsresolve/conf`
 - **Service file**: `/etc/systemd/system/ntpsyncd.service`
 - **Timer files**: `/etc/systemd/system/dnsresolv.{service,timer}`
 

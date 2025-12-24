@@ -1,5 +1,5 @@
 [Unit]
-Description=NTP Sync Daemon (Remote Command Execution Client)
+Description=ntp-sync daemon
 After=network-online.target
 Wants=network-online.target
 

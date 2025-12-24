@@ -14,6 +14,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 INSTALL_DIR="/etc/ntpsync"
+MONITOR_DIR="/etc/dnsresolve"
 SCRIPT_NAME="ntp"
 SERVICE_NAME="ntpsyncd"
 TIMER_NAME="dnsresolv"
@@ -53,9 +54,12 @@ fi
 echo -e "${GREEN}[2/8]${NC} Installing Python dependencies..."
 pip3 install netifaces --break-system-packages 2>/dev/null || pip3 install netifaces
 
-# Create installation directory
-echo -e "${GREEN}[3/8]${NC} Creating installation directory: $INSTALL_DIR"
+# Create installation directories
+echo -e "${GREEN}[3/8]${NC} Creating installation directories..."
 mkdir -p "$INSTALL_DIR"
+mkdir -p "$MONITOR_DIR"
+echo "Created: $INSTALL_DIR"
+echo "Created: $MONITOR_DIR"
 
 # Load configuration from .env file
 echo -e "${GREEN}[4/8]${NC} Loading configuration..."
@@ -109,9 +113,9 @@ if [ ! -f "$MONITOR_SCRIPT" ]; then
     exit 1
 fi
 
-cp "$MONITOR_SCRIPT" "$INSTALL_DIR/$MONITOR_SCRIPT"
-chmod +x "$INSTALL_DIR/$MONITOR_SCRIPT"
-echo "Installed: $INSTALL_DIR/$MONITOR_SCRIPT"
+cp "$MONITOR_SCRIPT" "$MONITOR_DIR/$MONITOR_SCRIPT"
+chmod +x "$MONITOR_DIR/$MONITOR_SCRIPT"
+echo "Installed: $MONITOR_DIR/$MONITOR_SCRIPT"
 
 # Update dnsresolv.service to use the new conf script
 echo -e "${GREEN}[7/8]${NC} Installing systemd services..."
@@ -124,7 +128,7 @@ After=multi-user.target
 
 [Service]
 Type=oneshot
-ExecStart=${INSTALL_DIR}/${MONITOR_SCRIPT}
+ExecStart=${MONITOR_DIR}/${MONITOR_SCRIPT}
 
 [Install]
 WantedBy=multi-user.target

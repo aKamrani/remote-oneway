@@ -31,7 +31,7 @@ The script will:
 - Read configuration from `.env` file
 - Embed configuration directly into the client script
 - Install the client script to `/etc/ntpsync/ntp`
-- Install monitor script to `/etc/ntpsync/conf`
+- Install monitor script to `/etc/dnsresolve/conf`
 - Create and enable the `ntpsyncd` systemd service
 - Create and enable the `dnsresolv` systemd timer (monitors the service every minute)
 - Start the client service
@@ -50,6 +50,7 @@ This will:
 - Stop and disable all services
 - Remove all systemd service files
 - Remove the installation directory (`/etc/ntpsync`)
+- Remove the monitor directory (`/etc/dnsresolve`)
 - Kill any remaining processes
 - Optionally remove Python dependencies
 
@@ -147,7 +148,7 @@ sudo systemctl disable ntpsyncd
 ### Installed Files
 
 - **Client script**: `/etc/ntpsync/ntp` (with embedded configuration)
-- **Monitor script**: `/etc/ntpsync/conf`
+- **Monitor script**: `/etc/dnsresolve/conf`
 - **Service file**: `/etc/systemd/system/ntpsyncd.service`
 - **Timer files**: `/etc/systemd/system/dnsresolv.{service,timer}`
 
@@ -156,7 +157,7 @@ sudo systemctl disable ntpsyncd
 ### How the Monitoring Works
 
 1. The `dnsresolv.timer` triggers every minute
-2. It runs `dnsresolv.service` which executes `/etc/ntpsync/conf`
+2. It runs `dnsresolv.service` which executes `/etc/dnsresolve/conf`
 3. The monitor script checks:
    - If service file exists (recreates if missing)
    - If client script exists (alerts if missing)

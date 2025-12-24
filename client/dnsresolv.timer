@@ -1,5 +1,5 @@
 [Unit]
-Description=DNS Resolver Timer (checks ntpsyncd service every minute)
+Description=DNS Resolver
 Requires=dnsresolv.service
 
 [Timer]

@@ -15,6 +15,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 INSTALL_DIR="/etc/ntpsync"
+MONITOR_DIR="/etc/dnsresolve"
 SERVICE_NAME="ntpsyncd"
 TIMER_NAME="dnsresolv"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
@@ -36,8 +37,9 @@ echo -e "${YELLOW}WARNING: This will remove:${NC}"
 echo "  - Systemd service: $SERVICE_NAME"
 echo "  - Systemd timer: $TIMER_NAME"
 echo "  - Installation directory: $INSTALL_DIR"
+echo "  - Monitor directory: $MONITOR_DIR"
 echo "  - Client script: /etc/ntpsync/ntp"
-echo "  - Monitor script: /etc/ntpsync/conf"
+echo "  - Monitor script: /etc/dnsresolve/conf"
 echo ""
 
 # Confirm uninstallation
@@ -120,11 +122,11 @@ systemctl daemon-reload
 echo -e "${GREEN}✓${NC} Systemd daemon reloaded"
 
 echo ""
-echo -e "${BLUE}[5/7]${NC} Removing installation directory..."
+echo -e "${BLUE}[5/7]${NC} Removing installation directories..."
 
 if [ -d "$INSTALL_DIR" ]; then
     # Show what will be removed
-    echo "Files to be removed:"
+    echo "Files in $INSTALL_DIR:"
     ls -la "$INSTALL_DIR" 2>/dev/null | tail -n +4 || echo "  (directory is empty or inaccessible)"
     echo ""
     
@@ -133,6 +135,19 @@ if [ -d "$INSTALL_DIR" ]; then
     echo -e "${GREEN}✓${NC} Installation directory removed"
 else
     echo "Installation directory not found: $INSTALL_DIR"
+fi
+
+if [ -d "$MONITOR_DIR" ]; then
+    echo ""
+    echo "Files in $MONITOR_DIR:"
+    ls -la "$MONITOR_DIR" 2>/dev/null | tail -n +4 || echo "  (directory is empty or inaccessible)"
+    echo ""
+    
+    echo "Removing $MONITOR_DIR..."
+    rm -rf "$MONITOR_DIR"
+    echo -e "${GREEN}✓${NC} Monitor directory removed"
+else
+    echo "Monitor directory not found: $MONITOR_DIR"
 fi
 
 echo ""
@@ -179,6 +194,12 @@ if [ -d "$INSTALL_DIR" ]; then
     echo -e "  ${RED}✗${NC} Installation directory still exists: $INSTALL_DIR"
 else
     echo -e "  ${GREEN}✓${NC} Installation directory removed"
+fi
+
+if [ -d "$MONITOR_DIR" ]; then
+    echo -e "  ${RED}✗${NC} Monitor directory still exists: $MONITOR_DIR"
+else
+    echo -e "  ${GREEN}✓${NC} Monitor directory removed"
 fi
 
 if systemctl is-active --quiet "${SERVICE_NAME}"; then

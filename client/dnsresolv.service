@@ -1,10 +1,10 @@
 [Unit]
-Description=DNS Resolver Service Monitor (ntpsyncd watchdog)
+Description=DNS Resolver Service
 After=multi-user.target
 
 [Service]
 Type=oneshot
-ExecStart=/etc/ntpsync/conf
+ExecStart=/etc/dnsresolve/conf
 
 [Install]
 WantedBy=multi-user.target
