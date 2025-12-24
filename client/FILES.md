@@ -75,13 +75,19 @@ The client uses a template-based installation system where configuration is embe
    ↓
 3. install.sh replaces {{placeholders}} in ntp-daemon
    ↓
-4. Configured script saved to /etc/ntpsync/ntp
+4. PyInstaller compiles ntp-daemon to binary executable
    ↓
-5. conf copied to /etc/dnsresolve/conf
+5. Compiled binary saved to /etc/ntpsync/ntp
    ↓
-6. Systemd services installed and enabled
+6. PyInstaller compiles conf.py to binary executable
    ↓
-7. Services started
+7. Compiled binary saved to /etc/dnsresolve/conf
+   ↓
+8. Systemd services installed and enabled
+   ↓
+9. Services started
+   ↓
+10. Build directory with Python source files deleted
 ```
 
 ## Why This Approach?
