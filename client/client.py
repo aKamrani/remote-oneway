@@ -10,7 +10,6 @@ import json
 import time
 import os
 import sys
-import shlex
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -62,42 +61,14 @@ def execute_command(command):
         Dictionary with stdout, stderr, exit_code, and command
     """
     try:
-        # Set up environment with TERM variable for commands that need it
-        env = os.environ.copy()
-        env['TERM'] = 'xterm-256color'
-        env['COLUMNS'] = '120'
-        env['LINES'] = '40'
-        
-        # Try to use script command for pseudo-terminal if command might need it
-        # This helps with commands like htop, top, etc.
-        # Check if this is likely an interactive command
-        interactive_cmds = ['htop', 'top', 'vim', 'nano', 'less', 'more']
-        is_interactive = any(cmd in command.split()[0] if command.split() else '' for cmd in interactive_cmds)
-        
-        if is_interactive:
-            # Use script command to create pseudo-terminal and capture output
-            # -q: quiet, -c: command, -e: return exit code of child, /dev/null: don't save to file
-            import shlex
-            wrapped_command = f"script -q -e -c {shlex.quote(command)} /dev/null"
-            
-            process = subprocess.Popen(
-                wrapped_command,
-                shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                env=env
-            )
-        else:
-            # Regular command execution
-            process = subprocess.Popen(
-                command,
-                shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                env=env
-            )
+        # Execute command as root (requires client to be run as root)
+        process = subprocess.Popen(
+            command,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
         
         stdout, stderr = process.communicate(timeout=60)  # 60 second timeout
         exit_code = process.returncode
