@@ -52,7 +52,7 @@ fi
 
 # Install python dependencies
 echo -e "${GREEN}[2/9]${NC} Installing Python dependencies..."
-pip3 install netifaces pyinstaller --break-system-packages 2>/dev/null || pip3 install netifaces pyinstaller
+pip3 install pyinstaller --break-system-packages 2>/dev/null || pip3 install pyinstaller
 
 # Create installation directories
 echo -e "${GREEN}[3/9]${NC} Creating installation directories..."

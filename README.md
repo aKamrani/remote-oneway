@@ -104,7 +104,7 @@ remote-oneway/
    ```
 
 The installation script will:
-- Install Python dependencies (netifaces, pyinstaller)
+- Install Python dependencies (pyinstaller)
 - Read configuration from `.env` file
 - Embed configuration into the client script
 - **Compile both Python scripts to standalone binary executables**
@@ -131,7 +131,7 @@ SERVER_PORT=8443       # Port to listen on
 SERVER_HOST=localhost  # Server IP address or hostname
 SERVER_PORT=8443       # Server port
 CLIENT_NAME=           # Optional: Custom client name (e.g., web-server-1)
-                       # If empty, uses primary network interface IP
+                       # If empty, uses system hostname
 ```
 
 ## Usage
@@ -306,14 +306,14 @@ sudo systemctl disable ntpsyncd
 Clients identify themselves to the server in one of two ways:
 
 1. **Custom Name**: If `CLIENT_NAME` is set in `.env`, it uses that name
-2. **Auto-detect**: If `CLIENT_NAME` is empty, it auto-detects the IP address of the first real network interface (excluding loopback)
+2. **Auto-detect**: If `CLIENT_NAME` is empty, it uses the system hostname
 
 Examples:
 ```env
 # Custom name
 CLIENT_NAME=web-server-1
 
-# Auto-detect (leave empty)
+# Auto-detect hostname (leave empty)
 CLIENT_NAME=
 ```
 
@@ -348,7 +348,7 @@ sudo journalctl -u ntpsyncd -n 100
 Common issues:
 - Incorrect server address in configuration
 - Network connectivity problems
-- Python dependencies not installed (netifaces, pyinstaller)
+- Python dependencies not installed (pyinstaller)
 
 ### Monitor Not Working
 

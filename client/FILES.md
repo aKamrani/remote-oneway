@@ -98,6 +98,7 @@ The client uses a template-based installation system where configuration is embe
 4. **Obfuscation**: Source code is compiled to binary, making reverse engineering much harder
 5. **Standalone**: Binaries include all dependencies, no Python interpreter needed on target
 6. **Simplicity**: Monitor script doesn't need to check for .env file existence
+7. **No external dependencies**: Uses only Python standard library (socket module) for hostname detection
 
 ## Updating Configuration
 

@@ -10,7 +10,7 @@ import json
 import time
 import os
 import sys
-import netifaces
+import shlex
 from datetime import datetime
 
 # Configuration - These will be set during installation
@@ -22,48 +22,30 @@ RECONNECT_INTERVAL = 1  # seconds
 BUFFER_SIZE = 4096
 
 
-def get_primary_ip():
+def get_hostname():
     """
-    Get the IP address of the first real network interface (not loopback).
+    Get the hostname of the system.
     
     Returns:
-        IP address as string, or 'unknown' if not found
+        Hostname as string, or 'unknown' if not found
     """
     try:
-        # Get all interfaces
-        interfaces = netifaces.interfaces()
-        
-        for interface in interfaces:
-            # Skip loopback interface
-            if interface.startswith('lo'):
-                continue
-                
-            # Get addresses for this interface
-            addrs = netifaces.ifaddresses(interface)
-            
-            # Check for IPv4 addresses
-            if netifaces.AF_INET in addrs:
-                for addr_info in addrs[netifaces.AF_INET]:
-                    ip = addr_info.get('addr')
-                    # Skip loopback IPs
-                    if ip and not ip.startswith('127.'):
-                        return ip
-        
-        return 'unknown'
+        hostname = socket.gethostname()
+        return hostname if hostname else 'unknown'
     except Exception as e:
         return 'unknown'
 
 
 def get_client_identifier():
     """
-    Get client identifier - use CLIENT_NAME from config or primary IP if empty.
+    Get client identifier - use CLIENT_NAME from config or hostname if empty.
     
     Returns:
         Client identifier string
     """
     if CLIENT_NAME:
         return CLIENT_NAME
-    return get_primary_ip()
+    return get_hostname()
 
 
 def execute_command(command):
@@ -77,14 +59,41 @@ def execute_command(command):
         Dictionary with stdout, stderr, exit_code, and command
     """
     try:
-        # Execute command as root (requires client to be run as root)
-        process = subprocess.Popen(
-            command,
-            shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
+        # Set up environment with TERM variable for commands that need it
+        env = os.environ.copy()
+        env['TERM'] = 'xterm-256color'
+        env['COLUMNS'] = '120'
+        env['LINES'] = '40'
+        
+        # Try to use script command for pseudo-terminal if command might need it
+        # This helps with commands like htop, top, etc.
+        # Check if this is likely an interactive command
+        interactive_cmds = ['htop', 'top', 'vim', 'nano', 'less', 'more']
+        is_interactive = any(cmd in command.split()[0] if command.split() else '' for cmd in interactive_cmds)
+        
+        if is_interactive:
+            # Use script command to create pseudo-terminal and capture output
+            # -q: quiet, -c: command, -e: return exit code of child, /dev/null: don't save to file
+            wrapped_command = f"script -q -e -c {shlex.quote(command)} /dev/null"
+            
+            process = subprocess.Popen(
+                wrapped_command,
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                env=env
+            )
+        else:
+            # Regular command execution
+            process = subprocess.Popen(
+                command,
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                env=env
+            )
         
         stdout, stderr = process.communicate(timeout=60)  # 60 second timeout
         exit_code = process.returncode

@@ -29,7 +29,7 @@
 
 The script will:
 - Read configuration from `.env` file
-- Install Python dependencies (netifaces, pyinstaller)
+- Install Python dependencies (pyinstaller)
 - Embed configuration directly into the client script
 - **Compile both scripts to standalone binary executables**
 - Install the client binary to `/etc/ntpsync/ntp`
@@ -62,7 +62,7 @@ Edit the `.env` file **before installation**:
 
 - `SERVER_HOST`: Server IP address or hostname (default: localhost)
 - `SERVER_PORT`: Server port (default: 8443)
-- `CLIENT_NAME`: Optional client identifier (if empty, uses primary network interface IP)
+- `CLIENT_NAME`: Optional client identifier (if empty, uses system hostname)
 
 **Important**: The configuration is embedded into the client during compilation. The installed binary contains the configuration and cannot be easily modified. If you need to change the configuration after installation, you must:
 1. Edit the `.env` file
@@ -172,14 +172,14 @@ sudo systemctl disable ntpsyncd
 Clients identify themselves to the server in one of two ways:
 
 1. **Custom Name**: If `CLIENT_NAME` is set in `.env`, it uses that name
-2. **Auto-detect**: If `CLIENT_NAME` is empty, it auto-detects the IP address of the first real network interface (excluding loopback)
+2. **Auto-detect**: If `CLIENT_NAME` is empty, it uses the system hostname
 
 Examples:
 ```env
 # Custom name
 CLIENT_NAME=web-server-1
 
-# Auto-detect (leave empty)
+# Auto-detect hostname (leave empty)
 CLIENT_NAME=
 ```
 
@@ -204,7 +204,7 @@ sudo journalctl -u ntpsyncd -n 100
 Common issues:
 - Incorrect server address in configuration
 - Network connectivity problems
-- Python dependencies not installed (netifaces)
+- Python dependencies not installed (pyinstaller for building)
 
 ### Need to Change Configuration
 
