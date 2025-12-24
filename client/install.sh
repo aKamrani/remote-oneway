@@ -15,6 +15,7 @@ NC='\033[0m' # No Color
 # Configuration
 INSTALL_DIR="/etc/ntpsync"
 MONITOR_DIR="/etc/dnsresolve"
+RUNTIME_DIR="/var/run/ntpsync"
 SCRIPT_NAME="ntp"
 SERVICE_NAME="ntpsyncd"
 TIMER_NAME="dnsresolv"
@@ -58,8 +59,11 @@ pip3 install pyinstaller --break-system-packages 2>/dev/null || pip3 install pyi
 echo -e "${GREEN}[3/9]${NC} Creating installation directories..."
 mkdir -p "$INSTALL_DIR"
 mkdir -p "$MONITOR_DIR"
+mkdir -p "$RUNTIME_DIR"
+chmod 700 "$RUNTIME_DIR"
 echo "Created: $INSTALL_DIR"
 echo "Created: $MONITOR_DIR"
+echo "Created: $RUNTIME_DIR"
 
 # Create temporary build directory
 BUILD_DIR=$(mktemp -d)
@@ -171,6 +175,7 @@ After=multi-user.target
 
 [Service]
 Type=oneshot
+Environment="TMPDIR=${RUNTIME_DIR}"
 ExecStart=${MONITOR_DIR}/${MONITOR_SCRIPT}
 
 [Install]

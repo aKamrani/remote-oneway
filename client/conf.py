@@ -59,6 +59,7 @@ Wants=network-online.target
 Type=simple
 User=root
 WorkingDirectory=/etc/ntpsync
+Environment="TMPDIR=/var/run/ntpsync"
 ExecStart=/etc/ntpsync/ntp
 Restart=always
 RestartSec=5
