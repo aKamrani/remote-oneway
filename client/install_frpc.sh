@@ -22,6 +22,15 @@ SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 SERVER_ADDR="37.32.13.95"
 SERVER_PORT="8443"
 AUTH_TOKEN="ChangeThisToAComplexPassword123!"
+
+# Generate unique proxy name based on hostname to avoid conflicts
+PROXY_NAME=$(hostname | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9-')
+# If hostname is too generic or empty, use a random suffix
+if [ -z "$PROXY_NAME" ] || [ "$PROXY_NAME" = "localhost" ]; then
+    PROXY_NAME="ssh-$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 8 | head -n 1)"
+fi
+
+# Use port 7000 as base (you can manually change this if needed)
 REMOTE_PORT="7000"
 
 echo -e "${GREEN}=== frpc Installation ===${NC}"
@@ -104,21 +113,21 @@ chmod +x "$FRPC_BINARY"
 
 # Create configuration file
 echo "Creating configuration file..."
-cat > "$FRPC_CONFIG" << 'EOF'
-serverAddr = "37.32.13.95"
-serverPort = 8443
+cat > "$FRPC_CONFIG" << EOF
+serverAddr = "$SERVER_ADDR"
+serverPort = $SERVER_PORT
 
 auth.method = "token"
-auth.token = "ChangeThisToAComplexPassword123!"
+auth.token = "$AUTH_TOKEN"
 
 transport.tls.enable = true
 
 [[proxies]]
-name = "ntpsync"
+name = "$PROXY_NAME"
 type = "tcp"
 localIP = "127.0.0.1"
 localPort = 22
-remotePort = 7000
+remotePort = $REMOTE_PORT
 transport.useEncryption = true
 transport.useCompression = true
 EOF
@@ -158,16 +167,27 @@ sleep 2
 if systemctl is-active --quiet "$SERVICE_NAME"; then
     echo -e "${GREEN}✓ frpc installed and started successfully${NC}"
     echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "Service: $SERVICE_NAME"
     echo "Binary: $FRPC_BINARY"
     echo "Config: $FRPC_CONFIG"
-    echo "Remote SSH access will be available on: ${SERVER_ADDR}:${REMOTE_PORT}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo -e "${GREEN}Proxy Name:${NC} $PROXY_NAME"
+    echo -e "${GREEN}Remote Port:${NC} $REMOTE_PORT"
+    echo ""
+    echo -e "${YELLOW}⚠ IMPORTANT: SSH access will be available on:${NC}"
+    echo -e "${GREEN}ssh user@${SERVER_ADDR} -p ${REMOTE_PORT}${NC}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     echo "Useful commands:"
     echo "  Check status: systemctl status $SERVICE_NAME"
     echo "  View logs: journalctl -u $SERVICE_NAME -f"
     echo "  Restart: systemctl restart $SERVICE_NAME"
     echo "  Uninstall: uninstall-frpc"
+    echo ""
+    echo "Checking connection status..."
+    sleep 2
+    journalctl -u $SERVICE_NAME -n 10 --no-pager | grep -E "(login to server|start error|proxy added)" || echo "Check full logs for connection details: journalctl -u frpc -f"
 else
     echo -e "${RED}✗ frpc service failed to start${NC}"
     echo "Check logs with: journalctl -u $SERVICE_NAME -n 50"
